@@ -2,64 +2,67 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     /*
-      DESIGN TOKENS — "Ledger & Passbook"
-      Grounded in the subject: a member-run office cooperative is, at
-      its core, a shared ledger — deposits, loans, and payouts stamped
-      and recorded by hand. Ruled paper, underline-style fill-in fields,
-      rubber-stamp status badges, and colored ledger tabs carry that
-      through the whole app rather than a generic dashboard skin.
+      DESIGN TOKENS — "iOS 18 Glass"
+      Frosted-glass cards floating over a soft gradient canvas, San
+      Francisco-style type scale, pill-shaped controls, and Apple's
+      semantic system colors. Every class name below is still what the
+      JS in this file generates — only the visual treatment changed.
     */
     :root {
-      --paper: #F2ECDB;
-      --paper-card: #FBF7EC;
-      --rule: #C9BFA0;
-      --rule-faint: #E4DBC1;
-      --ink: #22303F;
-      --ink-soft: #62707E;
-      --ink-accent: #1F4E5F;
-      --ink-accent-dark: #163A46;
-      --stamp-red: #A63446;
-      --stamp-green: #3F6B4F;
-      --stamp-gold: #93701A;
-      --font-display: 'Special Elite', 'Courier New', monospace;
-      --font-body: 'Work Sans', system-ui, -apple-system, sans-serif;
-      --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
-      --brandbar-h: 54px;
+      --ios-blue: #007AFF;
+      --ios-blue-dark: #0062CC;
+      --ios-green: #34C759;
+      --ios-red: #FF3B30;
+      --ios-orange: #FF9500;
+      --ios-purple: #AF52DE;
+      --bg-base: #F2F2F7;
+      --card-bg: rgba(255,255,255,0.68);
+      --card-border: rgba(255,255,255,0.55);
+      --fill-secondary: rgba(118,118,128,0.12);
+      --text-primary: #1C1C1E;
+      --text-secondary: rgba(60,60,67,0.6);
+      --text-tertiary: rgba(60,60,67,0.4);
+      --hairline: rgba(60,60,67,0.13);
+      --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+      --brandbar-h: 56px;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { height: 100%; }
     body {
-      font-family: var(--font-body);
-      background-color: var(--paper);
-      background-image: repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule-faint) 27px 28px);
+      font-family: var(--font-system);
       margin: 0;
-      color: var(--ink);
+      min-height: 100%;
+      color: var(--text-primary);
+      background-color: var(--bg-base);
+      /* Soft mesh-gradient canvas — the "wallpaper" the glass cards float over */
+      background-image:
+        radial-gradient(circle at 12% 8%, rgba(0,122,255,0.16), transparent 42%),
+        radial-gradient(circle at 88% 18%, rgba(175,82,222,0.14), transparent 40%),
+        radial-gradient(circle at 20% 92%, rgba(52,199,89,0.14), transparent 42%),
+        radial-gradient(circle at 90% 88%, rgba(255,149,0,0.10), transparent 40%);
+      background-attachment: fixed;
     }
 
-    /* ---- Persistent brand strip (outside the app router, present on every screen) ---- */
+    /* ---- Persistent brand strip: floating glass navbar, present on every screen ---- */
     .brandbar {
       position: sticky; top: 0; z-index: 10;
-      background: var(--ink-accent);
-      color: var(--paper-card);
-      padding: 12px 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      background: rgba(242,242,247,0.75);
+      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--hairline);
+      padding: 13px 16px;
     }
     .brandbar-inner {
       max-width: 480px; margin: 0 auto;
-      display: flex; align-items: baseline; gap: 10px;
+      display: flex; align-items: center; gap: 8px;
     }
     .brandmark {
-      font-family: var(--font-display);
-      font-size: 17px; letter-spacing: 0.03em;
+      font-size: 17px; font-weight: 700; letter-spacing: -0.2px; color: var(--text-primary);
     }
     .brandtag {
-      font-family: var(--font-mono);
-      font-size: 11px; color: rgba(251,247,236,0.7);
-      letter-spacing: 0.04em;
+      font-size: 13px; color: var(--text-secondary); font-weight: 500;
     }
 
     .center-screen {
@@ -70,142 +73,142 @@
       padding: 16px;
     }
     .card {
-      background: var(--paper-card);
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
       padding: 30px 26px;
-      border: 1px solid var(--rule);
-      border-left: 4px solid var(--ink-accent);
-      border-radius: 5px;
-      box-shadow: 0 1px 3px rgba(34,48,63,0.08), 0 6px 16px rgba(34,48,63,0.06);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
       width: 100%;
       max-width: 380px;
     }
     h1 {
-      font-family: var(--font-display);
-      font-size: 21px; margin: 0 0 6px; letter-spacing: 0.01em;
-      text-transform: uppercase; color: var(--ink);
+      font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.4px; color: var(--text-primary);
     }
     h2 {
-      font-family: var(--font-display);
-      font-size: 15px; margin: 0 0 12px; color: var(--ink-accent);
-      text-transform: uppercase; letter-spacing: 0.03em;
-      padding-bottom: 8px; border-bottom: 1px dashed var(--rule);
+      font-size: 20px; font-weight: 700; margin: 0 0 14px; letter-spacing: -0.2px; color: var(--text-primary);
+      display: flex; align-items: center; gap: 8px;
     }
-    p.sub { font-size: 13px; color: var(--ink-soft); margin: 0 0 20px; }
-    label { display: block; font-size: 12px; margin-bottom: 5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+    p.sub { font-size: 15px; color: var(--text-secondary); margin: 0 0 20px; line-height: 1.4; }
+    label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--text-secondary); font-weight: 500; }
     input, select {
-      width: 100%; padding: 9px 4px; margin-bottom: 16px;
-      border: none; border-bottom: 1.5px solid var(--rule); border-radius: 0;
-      background: transparent; font-size: 14.5px; font-family: var(--font-body); color: var(--ink);
-      transition: border-color 0.15s ease;
+      width: 100%; min-height: 44px; padding: 10px 14px; margin-bottom: 16px;
+      border: none; border-radius: 14px;
+      background: var(--fill-secondary); font-size: 16px; font-family: var(--font-system); color: var(--text-primary);
+      transition: box-shadow 0.15s ease;
     }
     input:focus, select:focus {
-      outline: none; border-bottom: 2px solid var(--ink-accent); margin-bottom: 15.5px;
+      outline: none; box-shadow: 0 0 0 2px var(--ios-blue);
     }
-    input[type="number"], input[type="date"] { font-family: var(--font-mono); }
+    input[type="number"], input[type="date"] { font-variant-numeric: tabular-nums; }
     button {
-      width: 100%; padding: 11px; background: var(--ink-accent); color: var(--paper-card);
-      border: 2px solid var(--ink-accent); border-radius: 3px;
-      font-family: var(--font-body); font-size: 13px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+      width: 100%; min-height: 44px; padding: 11px; background: var(--ios-blue); color: #fff;
+      border: none; border-radius: 9999px;
+      font-family: var(--font-system); font-size: 17px; font-weight: 600; cursor: pointer;
       transition: transform 0.08s ease, background 0.15s ease;
     }
-    button:hover { background: var(--ink-accent-dark); border-color: var(--ink-accent-dark); }
+    button:hover { background: var(--ios-blue-dark); }
     button:active { transform: scale(0.97); }
     button.secondary {
-      background: transparent; color: var(--ink); margin-top: 8px;
-      border: 1.5px dashed var(--rule);
+      background: var(--fill-secondary); color: var(--ios-blue); margin-top: 8px;
     }
-    button.secondary:hover { background: rgba(34,48,63,0.04); border-color: var(--ink-soft); }
-    button:disabled { background: var(--rule); border-color: var(--rule); color: #fff; cursor: not-allowed; transform: none; }
-    #error, .err { color: var(--stamp-red); font-size: 13px; margin-top: 10px; min-height: 16px; font-family: var(--font-mono); }
+    button.secondary:hover { background: rgba(118,118,128,0.2); }
+    button:disabled { background: var(--fill-secondary); color: var(--text-tertiary); cursor: not-allowed; transform: none; }
+    #error, .err { color: var(--ios-red); font-size: 13px; margin-top: 10px; min-height: 16px; }
     .app-shell { max-width: 480px; margin: 0 auto; padding: 18px 16px 40px; }
     .topbar {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 18px;
     }
-    .topbar span { font-size: 13px; color: var(--ink-soft); font-family: var(--font-mono); }
+    .topbar span { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
     .stat-card {
-      background: var(--paper-card); border: 1px solid var(--rule); border-left: 4px solid var(--stamp-gold);
-      border-radius: 5px; padding: 14px;
-      box-shadow: 0 1px 3px rgba(34,48,63,0.06);
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px; padding: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
-    .stat-card .label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
-    .stat-card .value { font-family: var(--font-mono); font-size: 19px; font-weight: 700; margin-top: 5px; color: var(--ink); }
+    .stat-card .label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+    .stat-card .value { font-size: 22px; font-weight: 700; margin-top: 6px; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
     .section {
-      background: var(--paper-card); border: 1px solid var(--rule); border-left: 4px solid var(--ink-accent);
-      border-radius: 5px; padding: 16px; margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(34,48,63,0.06);
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 22px; padding: 18px; margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
     .loan-row, .div-row {
-      display: flex; justify-content: space-between; padding: 9px 0;
-      border-bottom: 1px dashed var(--rule-faint); font-size: 13px; font-family: var(--font-mono);
+      display: flex; justify-content: space-between; padding: 10px 0;
+      border-bottom: 1px solid var(--hairline); font-size: 15px;
     }
     .loan-row:last-child, .div-row:last-child { border-bottom: none; }
     .badge {
-      display: inline-block; font-family: var(--font-mono);
-      font-size: 10.5px; padding: 3px 10px; border-radius: 999px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.07em;
-      border: 1.5px solid currentColor; transform: rotate(-3deg);
+      display: inline-block;
+      font-size: 12px; padding: 4px 12px; border-radius: 9999px; font-weight: 600;
     }
-    .badge.Pending { color: var(--stamp-red); background: rgba(166,52,70,0.08); }
-    .badge.Approved, .badge.Active, .badge.Verified { color: var(--stamp-green); background: rgba(63,107,79,0.08); }
-    .badge.Rejected { color: var(--stamp-red); background: rgba(166,52,70,0.08); }
-    .badge.Paid { color: var(--ink-accent); background: rgba(31,78,95,0.08); }
+    .badge.Pending { color: #fff; background: var(--ios-orange); }
+    .badge.Approved, .badge.Active, .badge.Verified { color: #fff; background: var(--ios-green); }
+    .badge.Rejected { color: #fff; background: var(--ios-red); }
+    .badge.Paid { color: #fff; background: var(--ios-blue); }
     .calc-box {
-      background: var(--paper); border: 1px dashed var(--rule);
-      border-radius: 5px; padding: 12px; margin: 10px 0; font-size: 13px; font-family: var(--font-mono);
+      background: var(--fill-secondary);
+      border-radius: 16px; padding: 14px; margin: 12px 0; font-size: 14px;
     }
-    .calc-box .row { display: flex; justify-content: space-between; padding: 3px 0; }
-    .calc-box .row.total { font-weight: 700; border-top: 1px dashed var(--rule); margin-top: 4px; padding-top: 6px; color: var(--ink-accent); }
-    .hint { font-size: 11.5px; color: var(--ink-soft); margin-top: -10px; margin-bottom: 14px; font-style: italic; }
+    .calc-box .row { display: flex; justify-content: space-between; padding: 4px 0; font-variant-numeric: tabular-nums; }
+    .calc-box .row.total { font-weight: 700; border-top: 1px solid var(--hairline); margin-top: 6px; padding-top: 8px; color: var(--ios-blue); }
+    .hint { font-size: 12.5px; color: var(--text-secondary); margin-top: -10px; margin-bottom: 14px; }
     .link-btn {
-      background: none; border: none; color: var(--ink-accent); font-size: 13px;
-      text-decoration: underline; cursor: pointer; width: auto; padding: 0;
-      font-weight: 600; font-family: var(--font-body);
+      background: none; border: none; color: var(--ios-blue); font-size: 15px;
+      cursor: pointer; width: auto; padding: 0; min-height: 0;
+      font-weight: 500; font-family: var(--font-system);
     }
-    .empty { font-size: 13px; color: var(--ink-soft); text-align: center; padding: 14px 0; font-style: italic; }
+    .empty { font-size: 14px; color: var(--text-tertiary); text-align: center; padding: 16px 0; }
     .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .nav-card {
-      background: var(--paper-card); border: 1px solid var(--rule); border-left: 4px solid var(--ink-accent);
-      border-radius: 5px; padding: 18px 14px;
-      box-shadow: 0 1px 3px rgba(34,48,63,0.06); cursor: pointer;
-      transition: transform 0.08s ease;
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px; padding: 16px 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06); cursor: pointer;
+      transition: transform 0.1s ease;
     }
-    .nav-card:hover { transform: translateY(-1px); }
-    .nav-card.disabled { opacity: 0.5; cursor: default; }
-    .nav-card.disabled:hover { transform: none; }
-    /* Each admin section gets its own ledger-tab color, like different colored folders */
-    .nav-grid .nav-card:nth-of-type(1) { border-left-color: var(--ink-accent); }
-    .nav-grid .nav-card:nth-of-type(2) { border-left-color: var(--stamp-gold); }
-    .nav-grid .nav-card:nth-of-type(3) { border-left-color: var(--stamp-green); }
-    .nav-grid .nav-card:nth-of-type(4) { border-left-color: var(--stamp-red); }
-    .nav-grid .nav-card:nth-of-type(5) { border-left-color: var(--ink-soft); }
-    .nav-title { font-family: var(--font-display); font-size: 14px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.02em; }
-    .nav-sub { font-size: 12px; color: var(--ink-soft); }
+    .nav-card:active { transform: scale(0.97); }
+    .nav-card.disabled { opacity: 0.45; cursor: default; }
+    .nav-card.disabled:active { transform: none; }
+    .nav-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 10px;
+    }
+    .nav-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.1px; }
+    .nav-sub { font-size: 12.5px; color: var(--text-secondary); }
     .approval-card { margin-bottom: 14px; }
-    .approval-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .approval-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
     .member-context {
-      font-size: 12px; color: var(--ink-soft); background: var(--paper);
-      border: 1px dashed var(--rule); border-radius: 5px; padding: 8px 10px; margin: 10px 0;
-      font-family: var(--font-mono);
+      font-size: 12.5px; color: var(--text-secondary); background: var(--fill-secondary);
+      border-radius: 12px; padding: 9px 12px; margin: 10px 0;
     }
-    .approval-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .approval-actions { display: flex; gap: 10px; margin-top: 12px; }
     .approval-actions button { margin: 0; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-    .tab {
-      flex: 1; padding: 9px; background: var(--paper-card); color: var(--ink-soft);
-      border: 1.5px dashed var(--rule); border-radius: 3px;
-      font-family: var(--font-body); font-size: 12.5px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.03em; cursor: pointer;
+    /* iOS-style segmented control */
+    .tabs {
+      display: flex; gap: 2px; margin-bottom: 16px;
+      background: var(--fill-secondary); border-radius: 12px; padding: 2px;
     }
-    .tab.active { background: var(--ink-accent); color: var(--paper-card); border-color: var(--ink-accent); }
+    .tab {
+      flex: 1; padding: 8px; background: transparent; color: var(--text-secondary);
+      border: none; border-radius: 10px;
+      font-family: var(--font-system); font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .tab.active { background: #fff; color: var(--text-primary); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
     .bulk-row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
-      padding: 10px; background: var(--paper); border: 1px dashed var(--rule); border-radius: 5px;
+      padding: 12px; background: var(--fill-secondary); border-radius: 16px;
     }
     .bulk-row select, .bulk-row input { margin-bottom: 0; grid-column: span 1; }
-    .bulk-row button { grid-column: span 2; width: auto; justify-self: start; }
+    .bulk-row button { grid-column: span 2; width: auto; justify-self: start; min-height: 36px; padding: 8px 18px; font-size: 14px; }
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; }
     }
@@ -215,10 +218,11 @@
   <header class="brandbar">
     <div class="brandbar-inner">
       <span class="brandmark">Office Cooperative</span>
-      <span class="brandtag">passbook portal</span>
+      <span class="brandtag">&middot; portal</span>
     </div>
   </header>
   <div id="app"></div>
+
 
   <script>
     // ---------- Server connection ----------
@@ -317,6 +321,19 @@
       return dt.toLocaleDateString();
     }
 
+    // ---------- iOS-style colored icon chips (monoline, 1.8px stroke) ----------
+    const ICONS = {
+      check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      banknote: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>',
+      wallet: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>',
+      trending: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+      settings: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+    };
+    function iconChip(iconKey, colorHex) {
+      // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
+      return '<div class="nav-icon" style="background:' + colorHex + '1A;color:' + colorHex + '">' + ICONS[iconKey] + '</div>';
+    }
+
     // ---------- LOGIN ----------
     function renderLogin() {
       document.getElementById('app').innerHTML =
@@ -405,8 +422,8 @@
 
       document.getElementById('dashContent').innerHTML =
         '<div class="stat-grid">' +
-        '<div class="stat-card"><div class="label">Total Contributions</div><div class="value">' + fmtMoney(data.totalContributions) + '</div></div>' +
-        '<div class="stat-card"><div class="label">Active Loan Balance</div><div class="value">' + fmtMoney(data.activeLoanBalance) + '</div></div>' +
+        '<div class="stat-card">' + iconChip('wallet', '#AF52DE') + '<div class="label">Total Contributions</div><div class="value">' + fmtMoney(data.totalContributions) + '</div></div>' +
+        '<div class="stat-card">' + iconChip('banknote', '#007AFF') + '<div class="label">Active Loan Balance</div><div class="value">' + fmtMoney(data.activeLoanBalance) + '</div></div>' +
         '</div>' +
         '<div class="section"><h2>My Loans</h2>' + loansHtml +
         '<button style="margin-top:12px" onclick="renderLoanForm()">Apply for a Loan</button></div>' +
@@ -600,11 +617,11 @@
         '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
         '</div>' +
         '<div class="nav-grid">' +
-        '<div class="nav-card" onclick="renderLoanApprovals()"><div class="nav-title">Loan Approvals</div><div class="nav-sub">Review pending applications</div></div>' +
-        '<div class="nav-card" onclick="renderLoanRepayments()"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div>' +
-        '<div class="nav-card" onclick="renderAdminContributions()"><div class="nav-title">Contributions</div><div class="nav-sub">Verify &amp; log deductions</div></div>' +
-        '<div class="nav-card" onclick="renderDividendCalculator()"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div>' +
-        '<div class="nav-card" onclick="renderAdminSettings()"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div>' +
+        '<div class="nav-card" onclick="renderLoanApprovals()">' + iconChip('check', '#007AFF') + '<div class="nav-title">Loan Approvals</div><div class="nav-sub">Review pending applications</div></div>' +
+        '<div class="nav-card" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div>' +
+        '<div class="nav-card" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-title">Contributions</div><div class="nav-sub">Verify &amp; log deductions</div></div>' +
+        '<div class="nav-card" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div>' +
+        '<div class="nav-card" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div>' +
         '</div></div>';
     }
 
