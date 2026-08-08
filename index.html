@@ -1,62 +1,1193 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cooperative Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    html, body {
+    /*
+      DESIGN TOKENS — "Ledger & Passbook"
+      Grounded in the subject: a member-run office cooperative is, at
+      its core, a shared ledger — deposits, loans, and payouts stamped
+      and recorded by hand. Ruled paper, underline-style fill-in fields,
+      rubber-stamp status badges, and colored ledger tabs carry that
+      through the whole app rather than a generic dashboard skin.
+    */
+    :root {
+      --paper: #F2ECDB;
+      --paper-card: #FBF7EC;
+      --rule: #C9BFA0;
+      --rule-faint: #E4DBC1;
+      --ink: #22303F;
+      --ink-soft: #62707E;
+      --ink-accent: #1F4E5F;
+      --ink-accent-dark: #163A46;
+      --stamp-red: #A63446;
+      --stamp-green: #3F6B4F;
+      --stamp-gold: #93701A;
+      --font-display: 'Special Elite', 'Courier New', monospace;
+      --font-body: 'Work Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+      --brandbar-h: 54px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: var(--font-body);
+      background-color: var(--paper);
+      background-image: repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule-faint) 27px 28px);
       margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden;
-      background: #f4f6f8;
+      color: var(--ink);
     }
-    iframe {
-      border: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
+
+    /* ---- Persistent brand strip (outside the app router, present on every screen) ---- */
+    .brandbar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--ink-accent);
+      color: var(--paper-card);
+      padding: 12px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
-    #fallback {
-      display: none;
-      position: fixed;
-      inset: 0;
+    .brandbar-inner {
+      max-width: 480px; margin: 0 auto;
+      display: flex; align-items: baseline; gap: 10px;
+    }
+    .brandmark {
+      font-family: var(--font-display);
+      font-size: 17px; letter-spacing: 0.03em;
+    }
+    .brandtag {
+      font-family: var(--font-mono);
+      font-size: 11px; color: rgba(251,247,236,0.7);
+      letter-spacing: 0.04em;
+    }
+
+    .center-screen {
+      display: flex;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
-      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
+      min-height: calc(100vh - var(--brandbar-h));
+      padding: 16px;
     }
-    #fallback a {
-      margin-top: 12px;
-      color: #2b6cb0;
-      font-weight: 600;
+    .card {
+      background: var(--paper-card);
+      padding: 30px 26px;
+      border: 1px solid var(--rule);
+      border-left: 4px solid var(--ink-accent);
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(34,48,63,0.08), 0 6px 16px rgba(34,48,63,0.06);
+      width: 100%;
+      max-width: 380px;
+    }
+    h1 {
+      font-family: var(--font-display);
+      font-size: 21px; margin: 0 0 6px; letter-spacing: 0.01em;
+      text-transform: uppercase; color: var(--ink);
+    }
+    h2 {
+      font-family: var(--font-display);
+      font-size: 15px; margin: 0 0 12px; color: var(--ink-accent);
+      text-transform: uppercase; letter-spacing: 0.03em;
+      padding-bottom: 8px; border-bottom: 1px dashed var(--rule);
+    }
+    p.sub { font-size: 13px; color: var(--ink-soft); margin: 0 0 20px; }
+    label { display: block; font-size: 12px; margin-bottom: 5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+    input, select {
+      width: 100%; padding: 9px 4px; margin-bottom: 16px;
+      border: none; border-bottom: 1.5px solid var(--rule); border-radius: 0;
+      background: transparent; font-size: 14.5px; font-family: var(--font-body); color: var(--ink);
+      transition: border-color 0.15s ease;
+    }
+    input:focus, select:focus {
+      outline: none; border-bottom: 2px solid var(--ink-accent); margin-bottom: 15.5px;
+    }
+    input[type="number"], input[type="date"] { font-family: var(--font-mono); }
+    button {
+      width: 100%; padding: 11px; background: var(--ink-accent); color: var(--paper-card);
+      border: 2px solid var(--ink-accent); border-radius: 3px;
+      font-family: var(--font-body); font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer;
+      transition: transform 0.08s ease, background 0.15s ease;
+    }
+    button:hover { background: var(--ink-accent-dark); border-color: var(--ink-accent-dark); }
+    button:active { transform: scale(0.97); }
+    button.secondary {
+      background: transparent; color: var(--ink); margin-top: 8px;
+      border: 1.5px dashed var(--rule);
+    }
+    button.secondary:hover { background: rgba(34,48,63,0.04); border-color: var(--ink-soft); }
+    button:disabled { background: var(--rule); border-color: var(--rule); color: #fff; cursor: not-allowed; transform: none; }
+    #error, .err { color: var(--stamp-red); font-size: 13px; margin-top: 10px; min-height: 16px; font-family: var(--font-mono); }
+    .app-shell { max-width: 480px; margin: 0 auto; padding: 18px 16px 40px; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 18px;
+    }
+    .topbar span { font-size: 13px; color: var(--ink-soft); font-family: var(--font-mono); }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .stat-card {
+      background: var(--paper-card); border: 1px solid var(--rule); border-left: 4px solid var(--stamp-gold);
+      border-radius: 5px; padding: 14px;
+      box-shadow: 0 1px 3px rgba(34,48,63,0.06);
+    }
+    .stat-card .label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card .value { font-family: var(--font-mono); font-size: 19px; font-weight: 700; margin-top: 5px; color: var(--ink); }
+    .section {
+      background: var(--paper-card); border: 1px solid var(--rule); border-left: 4px solid var(--ink-accent);
+      border-radius: 5px; padding: 16px; margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(34,48,63,0.06);
+    }
+    .loan-row, .div-row {
+      display: flex; justify-content: space-between; padding: 9px 0;
+      border-bottom: 1px dashed var(--rule-faint); font-size: 13px; font-family: var(--font-mono);
+    }
+    .loan-row:last-child, .div-row:last-child { border-bottom: none; }
+    .badge {
+      display: inline-block; font-family: var(--font-mono);
+      font-size: 10.5px; padding: 3px 10px; border-radius: 999px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      border: 1.5px solid currentColor; transform: rotate(-3deg);
+    }
+    .badge.Pending { color: var(--stamp-red); background: rgba(166,52,70,0.08); }
+    .badge.Approved, .badge.Active, .badge.Verified { color: var(--stamp-green); background: rgba(63,107,79,0.08); }
+    .badge.Rejected { color: var(--stamp-red); background: rgba(166,52,70,0.08); }
+    .badge.Paid { color: var(--ink-accent); background: rgba(31,78,95,0.08); }
+    .calc-box {
+      background: var(--paper); border: 1px dashed var(--rule);
+      border-radius: 5px; padding: 12px; margin: 10px 0; font-size: 13px; font-family: var(--font-mono);
+    }
+    .calc-box .row { display: flex; justify-content: space-between; padding: 3px 0; }
+    .calc-box .row.total { font-weight: 700; border-top: 1px dashed var(--rule); margin-top: 4px; padding-top: 6px; color: var(--ink-accent); }
+    .hint { font-size: 11.5px; color: var(--ink-soft); margin-top: -10px; margin-bottom: 14px; font-style: italic; }
+    .link-btn {
+      background: none; border: none; color: var(--ink-accent); font-size: 13px;
+      text-decoration: underline; cursor: pointer; width: auto; padding: 0;
+      font-weight: 600; font-family: var(--font-body);
+    }
+    .empty { font-size: 13px; color: var(--ink-soft); text-align: center; padding: 14px 0; font-style: italic; }
+    .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .nav-card {
+      background: var(--paper-card); border: 1px solid var(--rule); border-left: 4px solid var(--ink-accent);
+      border-radius: 5px; padding: 18px 14px;
+      box-shadow: 0 1px 3px rgba(34,48,63,0.06); cursor: pointer;
+      transition: transform 0.08s ease;
+    }
+    .nav-card:hover { transform: translateY(-1px); }
+    .nav-card.disabled { opacity: 0.5; cursor: default; }
+    .nav-card.disabled:hover { transform: none; }
+    /* Each admin section gets its own ledger-tab color, like different colored folders */
+    .nav-grid .nav-card:nth-of-type(1) { border-left-color: var(--ink-accent); }
+    .nav-grid .nav-card:nth-of-type(2) { border-left-color: var(--stamp-gold); }
+    .nav-grid .nav-card:nth-of-type(3) { border-left-color: var(--stamp-green); }
+    .nav-grid .nav-card:nth-of-type(4) { border-left-color: var(--stamp-red); }
+    .nav-grid .nav-card:nth-of-type(5) { border-left-color: var(--ink-soft); }
+    .nav-title { font-family: var(--font-display); font-size: 14px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.02em; }
+    .nav-sub { font-size: 12px; color: var(--ink-soft); }
+    .approval-card { margin-bottom: 14px; }
+    .approval-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .member-context {
+      font-size: 12px; color: var(--ink-soft); background: var(--paper);
+      border: 1px dashed var(--rule); border-radius: 5px; padding: 8px 10px; margin: 10px 0;
+      font-family: var(--font-mono);
+    }
+    .approval-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .approval-actions button { margin: 0; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab {
+      flex: 1; padding: 9px; background: var(--paper-card); color: var(--ink-soft);
+      border: 1.5px dashed var(--rule); border-radius: 3px;
+      font-family: var(--font-body); font-size: 12.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.03em; cursor: pointer;
+    }
+    .tab.active { background: var(--ink-accent); color: var(--paper-card); border-color: var(--ink-accent); }
+    .bulk-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
+      padding: 10px; background: var(--paper); border: 1px dashed var(--rule); border-radius: 5px;
+    }
+    .bulk-row select, .bulk-row input { margin-bottom: 0; grid-column: span 1; }
+    .bulk-row button { grid-column: span 2; width: auto; justify-self: start; }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
     }
   </style>
 </head>
 <body>
-  <iframe
-    id="appFrame"
-    src="https://script.google.com/macros/s/AKfycby_B7b6ONsrrmslGhbqwFzwLhGEVDKe0PifRA85MSm9VIjhMCxKxsbU33xUpJgpHd3MEQ/exec"
-    title="Cooperative Portal"
-    allow="clipboard-write">
-  </iframe>
-
-  <div id="fallback">
-    <p>If the portal doesn't load below, open it directly:</p>
-    <a href="https://script.google.com/macros/s/AKfycby_B7b6ONsrrmslGhbqwFzwLhGEVDKe0PifRA85MSm9VIjhMCxKxsbU33xUpJgpHd3MEQ/exec" target="_blank" rel="noopener">
-      Open Cooperative Portal
-    </a>
-  </div>
+  <header class="brandbar">
+    <div class="brandbar-inner">
+      <span class="brandmark">Office Cooperative</span>
+      <span class="brandtag">passbook portal</span>
+    </div>
+  </header>
+  <div id="app"></div>
 
   <script>
-    // If the iframe fails to load (network issue, blocked, etc.), show a direct link instead.
-    document.getElementById('appFrame').addEventListener('error', function () {
-      document.getElementById('appFrame').style.display = 'none';
-      document.getElementById('fallback').style.display = 'flex';
+    // ---------- Server connection ----------
+    // This page is served from tf.alvinsalazar.com, NOT from Apps Script,
+    // so google.script.run doesn't exist here — it's a browser API that
+    // Apps Script's HtmlService injects automatically, and only works for
+    // pages Apps Script itself serves. This shim reproduces the exact
+    // same chainable interface (.withSuccessHandler().withFailureHandler()
+    // .functionName(args)) but sends a real fetch() to the Apps Script
+    // JSON API underneath. Every other line of app code below is
+    // unchanged from the Apps Script version.
+    const API_URL = 'https://script.google.com/macros/s/AKfycby_B7b6ONsrrmslGhbqwFzwLhGEVDKe0PifRA85MSm9VIjhMCxKxsbU33xUpJgpHd3MEQ/exec';
+
+    function buildRunner(successHandler, failureHandler) {
+      return new Proxy({}, {
+        get: function (target, prop) {
+          if (prop === 'withSuccessHandler') {
+            return function (fn) { return buildRunner(fn, failureHandler); };
+          }
+          if (prop === 'withFailureHandler') {
+            return function (fn) { return buildRunner(successHandler, fn); };
+          }
+          // Any other property access is the server function name to call.
+          return function () {
+            const args = Array.prototype.slice.call(arguments);
+            // Content-Type text/plain keeps this a "simple request" so the
+            // browser skips the CORS preflight (OPTIONS) that Apps Script
+            // web apps can't respond to properly.
+            fetch(API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({ action: prop, params: args })
+            })
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (successHandler) successHandler(data);
+              })
+              .catch(function (err) {
+                if (failureHandler) failureHandler(err);
+              });
+          };
+        }
+      });
+    }
+
+    const google = { script: { run: buildRunner(null, null) } };
+
+    // ---------- App state ----------
+    let TOKEN = sessionStorage.getItem('coop_token') || null;
+    let ROLE = sessionStorage.getItem('coop_role') || null;
+    let NAME = sessionStorage.getItem('coop_name') || null;
+
+    window.addEventListener('DOMContentLoaded', function () {
+      if (TOKEN) {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (res.success) { route(); } else { clearSession(); renderLogin(); }
+          })
+          .withFailureHandler(function () { clearSession(); renderLogin(); })
+          .validateSession(TOKEN);
+      } else {
+        renderLogin();
+      }
     });
+
+    function route() {
+      if (ROLE === 'Admin') {
+        renderAdminHome();
+      } else {
+        renderMemberDashboard();
+      }
+    }
+
+    function clearSession() {
+      sessionStorage.removeItem('coop_token');
+      sessionStorage.removeItem('coop_role');
+      sessionStorage.removeItem('coop_name');
+      TOKEN = null; ROLE = null; NAME = null;
+    }
+
+    function logoutAndReload() {
+      if (TOKEN) google.script.run.logout(TOKEN);
+      clearSession();
+      renderLogin();
+    }
+
+    function fmtMoney(n) {
+      n = Number(n) || 0;
+      return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtDate(d) {
+      if (!d) return '';
+      const dt = new Date(d);
+      if (isNaN(dt)) return d;
+      return dt.toLocaleDateString();
+    }
+
+    // ---------- LOGIN ----------
+    function renderLogin() {
+      document.getElementById('app').innerHTML =
+        '<div class="center-screen"><div class="card">' +
+        '<h1>Cooperative Portal</h1>' +
+        '<p class="sub">Sign in with the credentials given to you.</p>' +
+        '<form id="loginForm">' +
+        '<label for="email">Email / Username</label>' +
+        '<input type="text" id="email" required autocomplete="username">' +
+        '<label for="password">Password</label>' +
+        '<input type="password" id="password" required autocomplete="current-password">' +
+        '<button type="submit" id="submitBtn">Log In</button>' +
+        '<div id="error"></div>' +
+        '</form></div></div>';
+
+      document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('submitBtn');
+      const errorEl = document.getElementById('error');
+      errorEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = 'Log In';
+          if (res.success) {
+            TOKEN = res.token; ROLE = res.role; NAME = res.fullName;
+            sessionStorage.setItem('coop_token', TOKEN);
+            sessionStorage.setItem('coop_role', ROLE);
+            sessionStorage.setItem('coop_name', NAME);
+            route();
+          } else {
+            errorEl.textContent = res.message || 'Login failed.';
+          }
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Log In';
+          errorEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .login(email, password);
+    }
+
+    // ---------- MEMBER DASHBOARD ----------
+    function renderMemberDashboard() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<span>Hi, ' + NAME + '</span>' +
+        '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
+        '</div><div id="dashContent" class="empty">Loading...</div></div>';
+
+      google.script.run
+        .withSuccessHandler(function (data) {
+          if (!data.success) { clearSession(); renderLogin(); return; }
+          renderDashboardContent(data);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('dashContent').innerHTML = '<div class="err">Could not load dashboard.</div>';
+        })
+        .getMemberDashboardData(TOKEN);
+    }
+
+    function renderDashboardContent(data) {
+      let loansHtml = '<div class="empty">No loan applications yet.</div>';
+      if (data.loans.length) {
+        loansHtml = data.loans.map(function (l) {
+          return '<div class="loan-row"><span>' +
+            fmtMoney(l.principal) + ' &middot; ' + l.tenureMonths + 'mo' +
+            '</span><span class="badge ' + l.status + '">' + l.status + '</span></div>';
+        }).join('');
+      }
+
+      let divHtml = '<div class="empty">No dividends recorded yet.</div>';
+      if (data.dividendHistory.length) {
+        divHtml = data.dividendHistory.map(function (d) {
+          return '<div class="div-row"><span>' + d.year + '</span><span>' + fmtMoney(d.amount) + '</span></div>';
+        }).join('');
+      }
+
+      document.getElementById('dashContent').innerHTML =
+        '<div class="stat-grid">' +
+        '<div class="stat-card"><div class="label">Total Contributions</div><div class="value">' + fmtMoney(data.totalContributions) + '</div></div>' +
+        '<div class="stat-card"><div class="label">Active Loan Balance</div><div class="value">' + fmtMoney(data.activeLoanBalance) + '</div></div>' +
+        '</div>' +
+        '<div class="section"><h2>My Loans</h2>' + loansHtml +
+        '<button style="margin-top:12px" onclick="renderLoanForm()">Apply for a Loan</button></div>' +
+        '<div class="section"><h2>Contributions</h2>' +
+        '<button onclick="renderContributionLedger()">View / Submit Contributions</button></div>' +
+        '<div class="section"><h2>Dividend History</h2>' + divHtml + '</div>';
+    }
+
+    // ---------- MEMBER: CONTRIBUTION LEDGER ----------
+    function renderContributionLedger() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderMemberDashboard()">&larr; Back to Dashboard</button>' +
+        '</div><div id="ledgerContent" class="empty">Loading...</div></div>';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('ledgerContent').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          renderLedgerContent(res.contributions);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('ledgerContent').innerHTML = '<div class="err">Could not load your contributions.</div>';
+        })
+        .getMemberContributions(TOKEN);
+    }
+
+    function renderLedgerContent(contributions) {
+      let rowsHtml = '<div class="empty">No contributions submitted yet.</div>';
+      if (contributions.length) {
+        rowsHtml = contributions.map(function (c) {
+          return '<div class="loan-row"><span>' + fmtDate(c.paymentDate) + ' &middot; ' + fmtMoney(c.amount) +
+            (c.reference ? ' &middot; ' + c.reference : '') + '</span>' +
+            '<span class="badge ' + c.status + '">' + c.status + '</span></div>';
+        }).join('');
+      }
+
+      document.getElementById('ledgerContent').innerHTML =
+        '<div class="section"><h2>Submit a Payment</h2>' +
+        '<form id="contribForm">' +
+        '<label>Amount</label>' +
+        '<input type="number" id="contribAmount" min="1" step="0.01" required>' +
+        '<label>Payment Date</label>' +
+        '<input type="date" id="contribDate" required>' +
+        '<label>Reference / Note (optional)</label>' +
+        '<input type="text" id="contribRef" placeholder="e.g. bank ref no., cash to admin">' +
+        '<button type="submit" id="contribBtn">Submit for Verification</button>' +
+        '<div id="contribError" class="err"></div>' +
+        '</form></div>' +
+        '<div class="section"><h2>History</h2>' + rowsHtml + '</div>';
+
+      document.getElementById('contribForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const amount = document.getElementById('contribAmount').value;
+        const date = document.getElementById('contribDate').value;
+        const ref = document.getElementById('contribRef').value;
+        const btn = document.getElementById('contribBtn');
+        const errEl = document.getElementById('contribError');
+        errEl.textContent = '';
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            btn.disabled = false;
+            btn.textContent = 'Submit for Verification';
+            if (res.success) {
+              renderContributionLedger();
+            } else {
+              errEl.textContent = res.message || 'Could not submit.';
+            }
+          })
+          .withFailureHandler(function () {
+            btn.disabled = false;
+            btn.textContent = 'Submit for Verification';
+            errEl.textContent = 'Something went wrong. Please try again.';
+          })
+          .submitContribution(TOKEN, amount, date, ref);
+      });
+    }
+
+    // ---------- LOAN APPLICATION ----------
+    let LOAN_CONFIG = null;
+
+    function renderLoanForm() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderMemberDashboard()">&larr; Back to Dashboard</button>' +
+        '</div><div id="loanFormContent" class="empty">Loading...</div></div>';
+
+      google.script.run
+        .withSuccessHandler(function (config) {
+          if (!config.success) { document.getElementById('loanFormContent').innerHTML = '<div class="err">' + config.message + '</div>'; return; }
+          LOAN_CONFIG = config;
+          renderLoanFormContent(config);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('loanFormContent').innerHTML = '<div class="err">Could not load loan settings.</div>';
+        })
+        .getLoanApplicationConfig(TOKEN);
+    }
+
+    function renderLoanFormContent(config) {
+      document.getElementById('loanFormContent').innerHTML =
+        '<div class="section"><h2>Apply for a Loan</h2>' +
+        '<p class="hint">Max eligible amount: ' + fmtMoney(config.maxLoanAmount) + ' (' + config.maxMultiple + 'x your total contributions of ' + fmtMoney(config.totalContributions) + ')</p>' +
+        '<form id="loanForm">' +
+        '<label>Loan Amount</label>' +
+        '<input type="number" id="principal" min="1" step="0.01" required>' +
+        '<label>Interest Rate (% per month)</label>' +
+        '<input type="number" id="rate" min="' + config.interestRateMin + '" max="' + config.interestRateMax + '" step="0.1" value="' + config.interestRateDefault + '" required>' +
+        '<div class="hint">Allowed range: ' + config.interestRateMin + '% - ' + config.interestRateMax + '%</div>' +
+        '<label>Tenure (months)</label>' +
+        '<input type="number" id="tenure" min="1" step="1" value="6" required>' +
+        '<label>Purpose (optional)</label>' +
+        '<input type="text" id="purpose">' +
+        '<div id="calcBox" class="calc-box"></div>' +
+        '<button type="submit" id="loanSubmitBtn">Submit Application</button>' +
+        '<div id="loanError" class="err"></div>' +
+        '</form></div>';
+
+      const principalEl = document.getElementById('principal');
+      const rateEl = document.getElementById('rate');
+      const tenureEl = document.getElementById('tenure');
+
+      [principalEl, rateEl, tenureEl].forEach(function (el) {
+        el.addEventListener('input', updateCalcPreview);
+      });
+      updateCalcPreview();
+
+      document.getElementById('loanForm').addEventListener('submit', submitLoan);
+    }
+
+    // Client-side live preview mirrors the server formula exactly:
+    // TotalInterest = Principal * (Rate/100) * TenureMonths
+    // MonthlyAmortization = (Principal + TotalInterest) / TenureMonths
+    function updateCalcPreview() {
+      const principal = Number(document.getElementById('principal').value) || 0;
+      const rate = Number(document.getElementById('rate').value) || 0;
+      const tenure = Number(document.getElementById('tenure').value) || 0;
+      const box = document.getElementById('calcBox');
+
+      if (!principal || !tenure) {
+        box.innerHTML = '<div class="empty">Enter amount and tenure to see estimated payments.</div>';
+        return;
+      }
+      const totalInterest = principal * (rate / 100) * tenure;
+      const totalPayable = principal + totalInterest;
+      const monthly = totalPayable / tenure;
+
+      box.innerHTML =
+        '<div class="row"><span>Total Interest</span><span>' + fmtMoney(totalInterest) + '</span></div>' +
+        '<div class="row"><span>Total Payable</span><span>' + fmtMoney(totalPayable) + '</span></div>' +
+        '<div class="row total"><span>Monthly Amortization</span><span>' + fmtMoney(monthly) + '</span></div>';
+    }
+
+    function submitLoan(e) {
+      e.preventDefault();
+      const principal = document.getElementById('principal').value;
+      const rate = document.getElementById('rate').value;
+      const tenure = document.getElementById('tenure').value;
+      const purpose = document.getElementById('purpose').value;
+      const btn = document.getElementById('loanSubmitBtn');
+      const errorEl = document.getElementById('loanError');
+      errorEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = 'Submit Application';
+          if (res.success) {
+            renderMemberDashboard();
+          } else {
+            errorEl.textContent = res.message || 'Could not submit application.';
+          }
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Submit Application';
+          errorEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .submitLoanApplication(TOKEN, principal, rate, tenure, purpose);
+    }
+
+    // ---------- ADMIN HOME ----------
+    function renderAdminHome() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<span>Admin &middot; ' + NAME + '</span>' +
+        '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
+        '</div>' +
+        '<div class="nav-grid">' +
+        '<div class="nav-card" onclick="renderLoanApprovals()"><div class="nav-title">Loan Approvals</div><div class="nav-sub">Review pending applications</div></div>' +
+        '<div class="nav-card" onclick="renderLoanRepayments()"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div>' +
+        '<div class="nav-card" onclick="renderAdminContributions()"><div class="nav-title">Contributions</div><div class="nav-sub">Verify &amp; log deductions</div></div>' +
+        '<div class="nav-card" onclick="renderDividendCalculator()"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div>' +
+        '<div class="nav-card" onclick="renderAdminSettings()"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div>' +
+        '</div></div>';
+    }
+
+    // ---------- ADMIN: LOAN APPROVALS ----------
+    function renderLoanApprovals() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
+        '</div><h2>Pending Loan Applications</h2>' +
+        '<div id="approvalsContent" class="empty">Loading...</div></div>';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('approvalsContent').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          renderApprovalsList(res.loans);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('approvalsContent').innerHTML = '<div class="err">Could not load pending loans.</div>';
+        })
+        .getPendingLoans(TOKEN);
+    }
+
+    function renderApprovalsList(loans) {
+      const container = document.getElementById('approvalsContent');
+      if (!loans.length) {
+        container.innerHTML = '<div class="empty">No pending loan applications right now.</div>';
+        return;
+      }
+
+      container.innerHTML = loans.map(function (l) {
+        const h = l.loanHistory;
+        return '<div class="section approval-card" id="loan-' + l.loanId + '">' +
+          '<div class="approval-top">' +
+          '<div><strong>' + l.memberName + '</strong><div class="hint" style="margin:0">' + l.memberEmail + '</div></div>' +
+          '<div class="badge Pending">Pending</div>' +
+          '</div>' +
+          '<div class="calc-box">' +
+          '<div class="row"><span>Requested Amount</span><span>' + fmtMoney(l.principal) + '</span></div>' +
+          '<div class="row"><span>Interest Rate</span><span>' + l.interestRate + '% / month</span></div>' +
+          '<div class="row"><span>Tenure</span><span>' + l.tenureMonths + ' months</span></div>' +
+          '<div class="row total"><span>Monthly Amortization</span><span>' + fmtMoney(l.monthlyAmortization) + '</span></div>' +
+          '</div>' +
+          (l.purpose ? '<div class="hint">Purpose: ' + l.purpose + '</div>' : '') +
+          '<div class="hint">Applied ' + fmtDate(l.dateApplied) + '</div>' +
+          '<div class="member-context">' +
+          'Total contributions: <strong>' + fmtMoney(l.totalContributions) + '</strong> &middot; ' +
+          'Active loans: <strong>' + h.active + '</strong> &middot; ' +
+          'Paid off: <strong>' + h.paid + '</strong> &middot; ' +
+          'Rejected: <strong>' + h.rejected + '</strong>' +
+          '</div>' +
+          '<div class="approval-actions">' +
+          '<button onclick="decideLoan(\'' + l.loanId + '\', \'approve\')">Approve</button>' +
+          '<button class="secondary" onclick="decideLoan(\'' + l.loanId + '\', \'reject\')">Reject</button>' +
+          '</div>' +
+          '<div class="err" id="err-' + l.loanId + '"></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function decideLoan(loanId, action) {
+      const label = action === 'approve' ? 'approve' : 'reject';
+      if (!confirm('Are you sure you want to ' + label + ' this loan application?')) return;
+
+      const card = document.getElementById('loan-' + loanId);
+      const errEl = document.getElementById('err-' + loanId);
+      const buttons = card.querySelectorAll('button');
+      buttons.forEach(function (b) { b.disabled = true; });
+
+      const fn = action === 'approve' ? 'approveLoan' : 'rejectLoan';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            card.style.opacity = '0.5';
+            card.innerHTML = '<div class="empty">' + (action === 'approve' ? 'Approved.' : 'Rejected.') + ' Refreshing...</div>';
+            setTimeout(renderLoanApprovals, 700);
+          } else {
+            buttons.forEach(function (b) { b.disabled = false; });
+            errEl.textContent = res.message || 'Could not update this loan.';
+          }
+        })
+        .withFailureHandler(function () {
+          buttons.forEach(function (b) { b.disabled = false; });
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        [fn](TOKEN, loanId);
+    }
+
+    // ---------- ADMIN: LOAN REPAYMENTS ----------
+    function renderLoanRepayments() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
+        '</div><h2>Active Loans</h2>' +
+        '<div id="repayContent" class="empty">Loading...</div></div>';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('repayContent').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          renderRepaymentsList(res.loans);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('repayContent').innerHTML = '<div class="err">Could not load active loans.</div>';
+        })
+        .getActiveLoansForRepayment(TOKEN);
+    }
+
+    function renderRepaymentsList(loans) {
+      const container = document.getElementById('repayContent');
+      if (!loans.length) {
+        container.innerHTML = '<div class="empty">No active loans right now.</div>';
+        return;
+      }
+
+      container.innerHTML = loans.map(function (l) {
+        const today = new Date().toISOString().split('T')[0];
+        return '<div class="section" id="loanRepay-' + l.loanId + '">' +
+          '<div class="approval-top">' +
+          '<div><strong>' + l.memberName + '</strong><div class="hint" style="margin:0">' +
+          l.interestRate + '%/mo &middot; ' + l.tenureMonths + ' months</div></div>' +
+          '<div class="badge Active">' + fmtMoney(l.remainingBalance) + ' left</div>' +
+          '</div>' +
+          '<div class="calc-box">' +
+          '<div class="row"><span>Original Principal</span><span>' + fmtMoney(l.principal) + '</span></div>' +
+          '<div class="row"><span>Monthly Amortization</span><span>' + fmtMoney(l.monthlyAmortization) + '</span></div>' +
+          '<div class="row total"><span>Remaining Balance</span><span>' + fmtMoney(l.remainingBalance) + '</span></div>' +
+          '</div>' +
+          '<div class="approval-actions">' +
+          '<button onclick="toggleRepayForm(\'' + l.loanId + '\')">Record Payment</button>' +
+          '<button class="secondary" onclick="toggleRepayHistory(\'' + l.loanId + '\', ' + l.monthlyAmortization + ')">View History</button>' +
+          '</div>' +
+          '<div id="repayForm-' + l.loanId + '" style="display:none;margin-top:12px">' +
+          '<label>Amount Paid</label>' +
+          '<input type="number" id="repayAmount-' + l.loanId + '" min="0.01" step="0.01" value="' + l.monthlyAmortization + '">' +
+          '<label>Payment Date</label>' +
+          '<input type="date" id="repayDate-' + l.loanId + '" value="' + today + '">' +
+          '<button onclick="submitRepayment(\'' + l.loanId + '\')" id="repaySubmit-' + l.loanId + '">Save Payment</button>' +
+          '<div id="repayErr-' + l.loanId + '" class="err"></div>' +
+          '</div>' +
+          '<div id="repayHistory-' + l.loanId + '" style="display:none;margin-top:12px"></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function toggleRepayForm(loanId) {
+      const el = document.getElementById('repayForm-' + loanId);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleRepayHistory(loanId) {
+      const el = document.getElementById('repayHistory-' + loanId);
+      if (el.style.display === 'block') { el.style.display = 'none'; return; }
+      el.style.display = 'block';
+      el.innerHTML = '<div class="empty">Loading history...</div>';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          if (!res.history.length) { el.innerHTML = '<div class="empty">No payments recorded yet.</div>'; return; }
+          el.innerHTML = res.history.map(function (h) {
+            return '<div class="loan-row"><span>' + fmtDate(h.paymentDate) + ' &middot; ' + fmtMoney(h.amountPaid) + '</span>' +
+              '<span class="hint" style="margin:0">P ' + fmtMoney(h.principalPaid) + ' / I ' + fmtMoney(h.interestPaid) + '</span></div>';
+          }).join('');
+        })
+        .withFailureHandler(function () {
+          el.innerHTML = '<div class="err">Could not load payment history.</div>';
+        })
+        .getLoanRepaymentHistory(TOKEN, loanId);
+    }
+
+    function submitRepayment(loanId) {
+      const amount = document.getElementById('repayAmount-' + loanId).value;
+      const date = document.getElementById('repayDate-' + loanId).value;
+      const btn = document.getElementById('repaySubmit-' + loanId);
+      const errEl = document.getElementById('repayErr-' + loanId);
+      errEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            const card = document.getElementById('loanRepay-' + loanId);
+            if (res.loanPaidOff) {
+              card.innerHTML = '<div class="empty">Loan fully paid off! Refreshing...</div>';
+            } else {
+              card.innerHTML = '<div class="empty">Payment recorded. Remaining balance: ' + fmtMoney(res.remainingBalance) + '. Refreshing...</div>';
+            }
+            setTimeout(renderLoanRepayments, 900);
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Save Payment';
+            errEl.textContent = res.message || 'Could not record payment.';
+          }
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Save Payment';
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .recordRepayment(TOKEN, loanId, amount, date);
+    }
+
+    // ---------- ADMIN: CONTRIBUTIONS ----------
+    let BULK_ROWS = 0;
+    let ACTIVE_MEMBERS = [];
+
+    function renderAdminContributions() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
+        '</div>' +
+        '<div class="tabs">' +
+        '<button id="tabPending" class="tab active" onclick="switchContribTab(\'pending\')">Pending Verification</button>' +
+        '<button id="tabBulk" class="tab" onclick="switchContribTab(\'bulk\')">Log Deductions</button>' +
+        '</div>' +
+        '<div id="pendingPane"><div class="empty">Loading...</div></div>' +
+        '<div id="bulkPane" style="display:none"></div>' +
+        '</div>';
+
+      loadPendingContributions();
+    }
+
+    function switchContribTab(tab) {
+      document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
+      document.getElementById('tabBulk').classList.toggle('active', tab === 'bulk');
+      document.getElementById('pendingPane').style.display = tab === 'pending' ? 'block' : 'none';
+      document.getElementById('bulkPane').style.display = tab === 'bulk' ? 'block' : 'none';
+      if (tab === 'bulk' && !ACTIVE_MEMBERS.length) loadBulkLogForm();
+    }
+
+    function loadPendingContributions() {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('pendingPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          renderPendingContributions(res.contributions);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('pendingPane').innerHTML = '<div class="err">Could not load pending contributions.</div>';
+        })
+        .getPendingContributions(TOKEN);
+    }
+
+    function renderPendingContributions(items) {
+      const pane = document.getElementById('pendingPane');
+      if (!items.length) {
+        pane.innerHTML = '<div class="empty">No contributions waiting for verification.</div>';
+        return;
+      }
+      pane.innerHTML = items.map(function (c) {
+        return '<div class="section approval-card" id="contrib-' + c.transId + '">' +
+          '<div class="approval-top">' +
+          '<div><strong>' + c.memberName + '</strong><div class="hint" style="margin:0">' + fmtDate(c.paymentDate) + '</div></div>' +
+          '<div class="badge Pending">' + fmtMoney(c.amount) + '</div>' +
+          '</div>' +
+          (c.reference ? '<div class="hint">Ref: ' + c.reference + '</div>' : '') +
+          '<div class="approval-actions">' +
+          '<button onclick="decideContribution(\'' + c.transId + '\', \'verify\')">Verify</button>' +
+          '<button class="secondary" onclick="decideContribution(\'' + c.transId + '\', \'reject\')">Reject</button>' +
+          '</div>' +
+          '<div class="err" id="cerr-' + c.transId + '"></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function decideContribution(transId, action) {
+      if (!confirm('Are you sure you want to ' + action + ' this contribution?')) return;
+      const card = document.getElementById('contrib-' + transId);
+      const errEl = document.getElementById('cerr-' + transId);
+      const buttons = card.querySelectorAll('button');
+      buttons.forEach(function (b) { b.disabled = true; });
+
+      const fn = action === 'verify' ? 'verifyContribution' : 'rejectContribution';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            card.innerHTML = '<div class="empty">' + (action === 'verify' ? 'Verified.' : 'Rejected.') + ' Refreshing...</div>';
+            setTimeout(loadPendingContributions, 700);
+          } else {
+            buttons.forEach(function (b) { b.disabled = false; });
+            errEl.textContent = res.message || 'Could not update this entry.';
+          }
+        })
+        .withFailureHandler(function () {
+          buttons.forEach(function (b) { b.disabled = false; });
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        [fn](TOKEN, transId);
+    }
+
+    function loadBulkLogForm() {
+      document.getElementById('bulkPane').innerHTML = '<div class="empty">Loading members...</div>';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('bulkPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          ACTIVE_MEMBERS = res.members;
+          BULK_ROWS = 0;
+          document.getElementById('bulkPane').innerHTML =
+            '<div class="section"><h2>Log Contributions</h2>' +
+            '<p class="hint">These are logged as already Verified since you\'re entering them directly.</p>' +
+            '<div id="bulkRows"></div>' +
+            '<button class="secondary" type="button" onclick="addBulkRow()">+ Add Row</button>' +
+            '<button style="margin-top:10px" onclick="submitBulkLog()">Save All</button>' +
+            '<div id="bulkError" class="err"></div>' +
+            '</div>';
+          addBulkRow();
+        })
+        .withFailureHandler(function () {
+          document.getElementById('bulkPane').innerHTML = '<div class="err">Could not load members.</div>';
+        })
+        .getActiveMembers(TOKEN);
+    }
+
+    function addBulkRow() {
+      const idx = BULK_ROWS++;
+      const options = ACTIVE_MEMBERS.map(function (m) {
+        return '<option value="' + m.memberId + '">' + m.fullName + '</option>';
+      }).join('');
+      const row = document.createElement('div');
+      row.className = 'bulk-row';
+      row.id = 'bulkRow-' + idx;
+      row.innerHTML =
+        '<select id="bulkMember-' + idx + '">' + options + '</select>' +
+        '<input type="number" id="bulkAmount-' + idx + '" placeholder="Amount" min="1" step="0.01">' +
+        '<input type="date" id="bulkDate-' + idx + '">' +
+        '<input type="text" id="bulkRef-' + idx + '" placeholder="Ref (optional)">' +
+        '<button type="button" class="link-btn" onclick="document.getElementById(\'bulkRow-' + idx + '\').remove()">Remove</button>';
+      document.getElementById('bulkRows').appendChild(row);
+    }
+
+    function submitBulkLog() {
+      const rows = document.querySelectorAll('.bulk-row');
+      const errEl = document.getElementById('bulkError');
+      errEl.textContent = '';
+      if (!rows.length) { errEl.textContent = 'Add at least one row.'; return; }
+
+      const entries = [];
+      let valid = true;
+      rows.forEach(function (row) {
+        const idx = row.id.split('-')[1];
+        const memberId = document.getElementById('bulkMember-' + idx).value;
+        const amount = document.getElementById('bulkAmount-' + idx).value;
+        const date = document.getElementById('bulkDate-' + idx).value;
+        const ref = document.getElementById('bulkRef-' + idx).value;
+        if (!memberId || !amount || !date) valid = false;
+        entries.push({ memberId: memberId, amount: amount, paymentDate: date, reference: ref });
+      });
+      if (!valid) { errEl.textContent = 'Every row needs a member, amount, and date.'; return; }
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            switchContribTab('pending');
+            loadPendingContributions();
+            ACTIVE_MEMBERS = [];
+          } else {
+            errEl.textContent = res.message || 'Could not save entries.';
+          }
+        })
+        .withFailureHandler(function () {
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .bulkLogContributions(TOKEN, entries);
+    }
+
+    // ---------- ADMIN: SETTINGS ----------
+    var SETTINGS_FIELDS = [
+      { group: 'Loan Rules', key: 'InterestRate_Default', label: 'Default Interest Rate (% / month)', type: 'number', step: '0.1' },
+      { group: 'Loan Rules', key: 'InterestRate_Min', label: 'Minimum Interest Rate (% / month)', type: 'number', step: '0.1' },
+      { group: 'Loan Rules', key: 'InterestRate_Max', label: 'Maximum Interest Rate (% / month)', type: 'number', step: '0.1' },
+      { group: 'Loan Rules', key: 'MaxLoanMultipleOfContributions', label: 'Max Loan = this x Total Contributions', type: 'number', step: '1' },
+      { group: 'Dividend Rules', key: 'DividendMethod', label: 'Dividend Calculation Method', type: 'select', options: ['AVERAGE_MONTHLY_BALANCE'] },
+      { group: 'Dividend Rules', key: 'DividendPoolPercent', label: 'Dividend Pool (% of Net Earnings)', type: 'number', step: '1' },
+      { group: 'Dividend Rules', key: 'MinTenureMonthsForDividend', label: 'Min. Membership Months for Dividend Eligibility', type: 'number', step: '1' },
+      { group: 'Session', key: 'SessionLengthHours', label: 'Login Session Length (hours)', type: 'number', step: '1' }
+    ];
+
+    function renderAdminSettings() {
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
+        '</div><h2>Settings</h2>' +
+        '<div id="settingsContent" class="empty">Loading...</div></div>';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('settingsContent').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          renderSettingsForm(res.settings);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('settingsContent').innerHTML = '<div class="err">Could not load settings.</div>';
+        })
+        .getSettingsForAdmin(TOKEN);
+    }
+
+    function renderSettingsForm(settings) {
+      const groups = {};
+      SETTINGS_FIELDS.forEach(function (f) {
+        if (!groups[f.group]) groups[f.group] = [];
+        groups[f.group].push(f);
+      });
+
+      let html = '<form id="settingsForm">';
+      Object.keys(groups).forEach(function (groupName) {
+        html += '<div class="section"><h2>' + groupName + '</h2>';
+        groups[groupName].forEach(function (f) {
+          const current = settings[f.key] ? settings[f.key].value : '';
+          const desc = settings[f.key] ? settings[f.key].description : '';
+          html += '<label>' + f.label + '</label>';
+          if (f.type === 'select') {
+            html += '<select id="setting-' + f.key + '">' +
+              f.options.map(function (o) {
+                return '<option value="' + o + '"' + (o === current ? ' selected' : '') + '>' + o + '</option>';
+              }).join('') + '</select>';
+          } else {
+            html += '<input type="number" id="setting-' + f.key + '" step="' + f.step + '" value="' + current + '">';
+          }
+          if (desc) html += '<div class="hint">' + desc + '</div>';
+        });
+        html += '</div>';
+      });
+      html += '<button type="submit" id="settingsSaveBtn">Save Settings</button>' +
+        '<div id="settingsSaved" class="err"></div></form>';
+
+      document.getElementById('settingsContent').innerHTML = html;
+      document.getElementById('settingsForm').addEventListener('submit', saveSettings);
+    }
+
+    function saveSettings(e) {
+      e.preventDefault();
+      const updates = {};
+      SETTINGS_FIELDS.forEach(function (f) {
+        const el = document.getElementById('setting-' + f.key);
+        updates[f.key] = f.type === 'select' ? el.value : Number(el.value);
+      });
+
+      const btn = document.getElementById('settingsSaveBtn');
+      const msgEl = document.getElementById('settingsSaved');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      msgEl.textContent = '';
+      msgEl.style.color = '#A63446';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = 'Save Settings';
+          if (res.success) {
+            msgEl.style.color = '#3F6B4F';
+            msgEl.textContent = 'Saved.';
+          } else {
+            msgEl.textContent = res.message || 'Could not save settings.';
+          }
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Save Settings';
+          msgEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .updateSettings(TOKEN, updates);
+    }
+
+    // ---------- ADMIN: DIVIDEND CALCULATOR ----------
+    let LAST_DIVIDEND_CALC = null;
+
+    function renderDividendCalculator() {
+      const defaultYear = new Date().getFullYear() - 1;
+      document.getElementById('app').innerHTML =
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
+        '</div><h2>Year-End Dividend Calculator</h2>' +
+        '<div class="section">' +
+        '<label>Year</label>' +
+        '<input type="number" id="divYear" value="' + defaultYear + '" step="1">' +
+        '<label>Net Cooperative Earnings for the Year</label>' +
+        '<input type="number" id="divEarnings" step="0.01" placeholder="e.g. 150000">' +
+        '<div class="hint">Dividend pool = this amount x DividendPoolPercent from Settings.</div>' +
+        '<button onclick="previewDividends()" id="previewBtn">Preview Calculation</button>' +
+        '<div id="divError" class="err"></div>' +
+        '</div>' +
+        '<div id="divResults"></div></div>';
+    }
+
+    function previewDividends() {
+      const year = document.getElementById('divYear').value;
+      const earnings = document.getElementById('divEarnings').value;
+      const errEl = document.getElementById('divError');
+      const btn = document.getElementById('previewBtn');
+      errEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Calculating...';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = 'Preview Calculation';
+          if (!res.success) { errEl.textContent = res.message || 'Could not calculate.'; return; }
+          LAST_DIVIDEND_CALC = { year: year, earnings: earnings };
+          renderDividendResults(res, year);
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Preview Calculation';
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .previewDividendCalculation(TOKEN, year, earnings);
+    }
+
+    function renderDividendResults(res, year) {
+      let rowsHtml = '<div class="empty">No eligible members.</div>';
+      if (res.results.length) {
+        rowsHtml = '<div class="loan-row" style="font-weight:700;color:#888;font-size:11px">' +
+          '<span>MEMBER</span><span>SHARE / DIVIDEND</span></div>' +
+          res.results.map(function (r) {
+            return '<div class="loan-row"><span>' + r.memberName +
+              '<div class="hint" style="margin:0">avg balance ' + fmtMoney(r.avgBalance) + ' &middot; ' + r.sharePercent.toFixed(2) + '%</div></span>' +
+              '<span style="font-weight:700">' + fmtMoney(r.dividendAmount) + '</span></div>';
+          }).join('');
+      }
+
+      let excludedHtml = '';
+      if (res.excluded.length) {
+        excludedHtml = '<div class="section"><h2>Not Eligible</h2>' +
+          res.excluded.map(function (x) {
+            return '<div class="loan-row"><span>' + x.memberName + '</span><span class="hint" style="margin:0">' + x.reason + '</span></div>';
+          }).join('') + '</div>';
+      }
+
+      document.getElementById('divResults').innerHTML =
+        '<div class="calc-box" style="margin-bottom:16px">' +
+        '<div class="row"><span>Dividend Pool</span><span>' + fmtMoney(res.poolAmount) + '</span></div>' +
+        '<div class="row"><span>Total Share Capital (all eligible members)</span><span>' + fmtMoney(res.totalShareSum) + '</span></div>' +
+        '<div class="row total"><span>Eligible Members</span><span>' + res.results.length + '</span></div>' +
+        '</div>' +
+        '<div class="section">' + rowsHtml + '</div>' +
+        excludedHtml +
+        '<button id="commitBtn" onclick="checkAndCommitDividends()">Save to Dividends Sheet</button>' +
+        '<div id="commitError" class="err"></div>';
+    }
+
+    function checkAndCommitDividends() {
+      const year = LAST_DIVIDEND_CALC.year;
+      google.script.run
+        .withSuccessHandler(function (statusRes) {
+          if (!statusRes.success) { document.getElementById('commitError').textContent = statusRes.message; return; }
+          let msg = 'Save these dividend amounts to the Dividends sheet for ' + year + '?';
+          if (statusRes.exists) {
+            msg = 'There are already ' + statusRes.count + ' dividend record(s) for ' + year +
+              '. Saving will REPLACE them with this calculation. Continue?';
+          }
+          if (confirm(msg)) commitDividends();
+        })
+        .withFailureHandler(function () {
+          document.getElementById('commitError').textContent = 'Could not check existing records.';
+        })
+        .getDividendYearStatus(TOKEN, year);
+    }
+
+    function commitDividends() {
+      const btn = document.getElementById('commitBtn');
+      const errEl = document.getElementById('commitError');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      errEl.textContent = '';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            btn.textContent = 'Saved';
+            errEl.style.color = '#3F6B4F';
+            errEl.textContent = 'Saved dividends for ' + res.count + ' member(s).';
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Save to Dividends Sheet';
+            errEl.textContent = res.message || 'Could not save.';
+          }
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Save to Dividends Sheet';
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .commitDividendCalculation(TOKEN, LAST_DIVIDEND_CALC.year, LAST_DIVIDEND_CALC.earnings);
+    }
   </script>
 </body>
 </html>
