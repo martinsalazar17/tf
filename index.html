@@ -482,12 +482,31 @@
     }
 
     function renderDashboardContent(data) {
-      let loansHtml = '<div class="empty">No loan applications yet.</div>';
+      let loansHtml = '<div class="empty">No loans on record.</div>';
       if (data.loans.length) {
         loansHtml = data.loans.map(function (l) {
-          return '<div class="loan-row"><span>' +
-            fmtMoney(l.principal) + ' &middot; ' + l.tenureMonths + 'mo' +
-            '</span><span class="badge ' + l.status + '">' + l.status + '</span></div>';
+          let repayHtml = '<div class="empty">No payments recorded yet.</div>';
+          if (l.repayments.length) {
+            repayHtml = l.repayments.map(function (r) {
+              return '<div class="loan-row"><span>' + fmtDate(r.paymentDate) + ' &middot; ' + fmtMoney(r.amountPaid) + '</span>' +
+                '<span class="hint" style="margin:0">P ' + fmtMoney(r.principalPaid) + ' / I ' + fmtMoney(r.interestPaid) + '</span></div>';
+            }).join('');
+          }
+          return '<div class="loan-row" style="cursor:pointer" onclick="toggleLoanDetail(\'' + l.loanId + '\')">' +
+            '<span>' + fmtMoney(l.principal) + ' &middot; ' + l.tenureMonths + 'mo</span>' +
+            '<span class="badge ' + l.status + '">' + l.status + '</span>' +
+            '</div>' +
+            '<div id="loanDetail-' + l.loanId + '" style="display:none">' +
+            '<div class="calc-box">' +
+            '<div class="row"><span>Principal</span><span>' + fmtMoney(l.principal) + '</span></div>' +
+            '<div class="row"><span>Interest Rate</span><span>' + l.interestRate + '% / month</span></div>' +
+            '<div class="row"><span>Period</span><span>' + l.tenureMonths + ' months</span></div>' +
+            '<div class="row"><span>Monthly Amortization</span><span>' + fmtMoney(l.monthlyAmortization) + '</span></div>' +
+            '<div class="row total"><span>Remaining Balance</span><span>' + fmtMoney(l.remainingBalance) + '</span></div>' +
+            '</div>' +
+            (l.purpose ? '<div class="hint">Purpose: ' + l.purpose + '</div>' : '') +
+            '<div class="hint" style="margin-bottom:8px">Payment Trail</div>' + repayHtml +
+            '</div>';
         }).join('');
       }
 
@@ -503,11 +522,15 @@
         '<div class="stat-card">' + iconChip('wallet', '#AF52DE') + '<div class="label">Total Contributions</div><div class="value">' + fmtMoney(data.totalContributions) + '</div></div>' +
         '<div class="stat-card">' + iconChip('banknote', '#007AFF') + '<div class="label">Active Loan Balance</div><div class="value">' + fmtMoney(data.activeLoanBalance) + '</div></div>' +
         '</div>' +
-        '<div class="section"><h2>My Loans</h2>' + loansHtml +
-        '<button style="margin-top:12px" onclick="renderLoanForm()">Apply for a Loan</button></div>' +
+        '<div class="section"><h2>My Loans</h2>' + loansHtml + '</div>' +
         '<div class="section"><h2>Contributions</h2>' +
         '<button onclick="renderContributionLedger()">View Contributions</button></div>' +
         '<div class="section"><h2>Dividend History</h2>' + divHtml + '</div>';
+    }
+
+    function toggleLoanDetail(loanId) {
+      const el = document.getElementById('loanDetail-' + loanId);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
 
     // ---------- MEMBER: CONTRIBUTION LEDGER (view-only) ----------
@@ -544,68 +567,99 @@
         '<div class="section"><h2>Contribution History</h2>' + rowsHtml + '</div>';
     }
 
-    // ---------- LOAN APPLICATION ----------
-    let LOAN_CONFIG = null;
-
-    function renderLoanForm() {
+    // ---------- ADMIN HOME ----------
+    function renderAdminHome() {
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
-        '<button class="link-btn" onclick="renderMemberDashboard()">&larr; Back to Dashboard</button>' +
-        '</div><div id="loanFormContent">' + spinnerHTML() + '</div></div>',
+        '<span>Admin &middot; ' + NAME + '</span>' +
+        '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
+        '</div>' +
+        '<div class="nav-list">' +
+        '<div class="nav-row" onclick="renderLoanApplicationForm()">' + iconChip('check', '#007AFF') + '<div class="nav-row-text"><div class="nav-title">Loan Application</div><div class="nav-sub">Create a new loan for a member</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-row-text"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-row-text"><div class="nav-title">Contributions</div><div class="nav-sub">Log member contributions</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-row-text"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-row-text"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderMemberDetails()">' + iconChip('users', '#5AC8FA') + '<div class="nav-row-text"><div class="nav-title">Member Details</div><div class="nav-sub">Add a new member login</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '</div></div>'
+      );
+    }
+
+    // ---------- ADMIN: LOAN APPROVALS ----------
+    function renderLoanApplicationForm() {
+      swapApp(
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
+        '</div><h2>Loan Application</h2>' +
+        '<div id="loanAppContent">' + spinnerHTML() + '</div></div>',
         function () {
           google.script.run
-            .withSuccessHandler(function (config) {
-              if (!config.success) { document.getElementById('loanFormContent').innerHTML = '<div class="err">' + config.message + '</div>'; return; }
-              LOAN_CONFIG = config;
-              renderLoanFormContent(config);
+            .withSuccessHandler(function (membersRes) {
+              if (!membersRes.success) { document.getElementById('loanAppContent').innerHTML = '<div class="err">' + membersRes.message + '</div>'; return; }
+              google.script.run
+                .withSuccessHandler(function (settingsRes) {
+                  if (!settingsRes.success) { document.getElementById('loanAppContent').innerHTML = '<div class="err">' + settingsRes.message + '</div>'; return; }
+                  renderLoanApplicationContent(membersRes.members, settingsRes.settings);
+                })
+                .withFailureHandler(function () {
+                  document.getElementById('loanAppContent').innerHTML = '<div class="err">Could not load settings.</div>';
+                })
+                .getSettingsForAdmin(TOKEN);
             })
             .withFailureHandler(function () {
-              document.getElementById('loanFormContent').innerHTML = '<div class="err">Could not load loan settings.</div>';
+              document.getElementById('loanAppContent').innerHTML = '<div class="err">Could not load members.</div>';
             })
-            .getLoanApplicationConfig(TOKEN);
+            .getActiveMembers(TOKEN);
         }
       );
     }
 
-    function renderLoanFormContent(config) {
-      document.getElementById('loanFormContent').innerHTML =
-        '<div class="section"><h2>Apply for a Loan</h2>' +
-        '<p class="hint">Max eligible amount: ' + fmtMoney(config.maxLoanAmount) + ' (' + config.maxMultiple + 'x your total contributions of ' + fmtMoney(config.totalContributions) + ')</p>' +
-        '<form id="loanForm">' +
+    function renderLoanApplicationContent(members, settings) {
+      const minRate = Number(settings.InterestRate_Min.value);
+      const maxRate = Number(settings.InterestRate_Max.value);
+      const defaultRate = Number(settings.InterestRate_Default.value);
+      const options = members.map(function (m) {
+        return '<option value="' + m.memberId + '">' + m.fullName + '</option>';
+      }).join('');
+
+      document.getElementById('loanAppContent').innerHTML =
+        '<div class="section">' +
+        '<form id="loanAppForm">' +
+        '<label>Member</label>' +
+        '<select id="loanMember" required>' + options + '</select>' +
         '<label>Loan Amount</label>' +
-        '<input type="number" id="principal" min="1" step="0.01" required>' +
+        '<input type="number" id="loanPrincipal" min="1" step="0.01" required>' +
         '<label>Interest Rate (% per month)</label>' +
-        '<input type="number" id="rate" min="' + config.interestRateMin + '" max="' + config.interestRateMax + '" step="0.1" value="' + config.interestRateDefault + '" required>' +
-        '<div class="hint">Allowed range: ' + config.interestRateMin + '% - ' + config.interestRateMax + '%</div>' +
+        '<input type="number" id="loanRate" min="' + minRate + '" max="' + maxRate + '" step="0.1" value="' + defaultRate + '" required>' +
+        '<div class="hint">Allowed range: ' + minRate + '% - ' + maxRate + '%</div>' +
         '<label>Tenure (months)</label>' +
-        '<input type="number" id="tenure" min="1" step="1" value="6" required>' +
+        '<input type="number" id="loanTenure" min="1" step="1" value="6" required>' +
         '<label>Purpose (optional)</label>' +
-        '<input type="text" id="purpose">' +
-        '<div id="calcBox" class="calc-box"></div>' +
-        '<button type="submit" id="loanSubmitBtn">Submit Application</button>' +
-        '<div id="loanError" class="err"></div>' +
+        '<input type="text" id="loanPurpose">' +
+        '<div id="loanAppCalcBox" class="calc-box"></div>' +
+        '<button type="submit" id="loanAppSubmitBtn">Create Loan</button>' +
+        '<div id="loanAppMsg" class="err"></div>' +
         '</form></div>';
 
-      const principalEl = document.getElementById('principal');
-      const rateEl = document.getElementById('rate');
-      const tenureEl = document.getElementById('tenure');
-
+      const principalEl = document.getElementById('loanPrincipal');
+      const rateEl = document.getElementById('loanRate');
+      const tenureEl = document.getElementById('loanTenure');
       [principalEl, rateEl, tenureEl].forEach(function (el) {
-        el.addEventListener('input', updateCalcPreview);
+        el.addEventListener('input', updateLoanAppCalcPreview);
       });
-      updateCalcPreview();
+      updateLoanAppCalcPreview();
 
-      document.getElementById('loanForm').addEventListener('submit', submitLoan);
+      document.getElementById('loanAppForm').addEventListener('submit', submitAdminLoan);
     }
 
-    // Client-side live preview mirrors the server formula exactly:
+    // Mirrors the server's flat-rate formula exactly for instant feedback:
     // TotalInterest = Principal * (Rate/100) * TenureMonths
     // MonthlyAmortization = (Principal + TotalInterest) / TenureMonths
-    function updateCalcPreview() {
-      const principal = Number(document.getElementById('principal').value) || 0;
-      const rate = Number(document.getElementById('rate').value) || 0;
-      const tenure = Number(document.getElementById('tenure').value) || 0;
-      const box = document.getElementById('calcBox');
+    function updateLoanAppCalcPreview() {
+      const principal = Number(document.getElementById('loanPrincipal').value) || 0;
+      const rate = Number(document.getElementById('loanRate').value) || 0;
+      const tenure = Number(document.getElementById('loanTenure').value) || 0;
+      const box = document.getElementById('loanAppCalcBox');
 
       if (!principal || !tenure) {
         box.innerHTML = '<div class="empty">Enter amount and tenure to see estimated payments.</div>';
@@ -621,138 +675,39 @@
         '<div class="row total"><span>Monthly Amortization</span><span>' + fmtMoney(monthly) + '</span></div>';
     }
 
-    function submitLoan(e) {
+    function submitAdminLoan(e) {
       e.preventDefault();
-      const principal = document.getElementById('principal').value;
-      const rate = document.getElementById('rate').value;
-      const tenure = document.getElementById('tenure').value;
-      const purpose = document.getElementById('purpose').value;
-      const btn = document.getElementById('loanSubmitBtn');
-      const errorEl = document.getElementById('loanError');
-      errorEl.textContent = '';
+      const memberId = document.getElementById('loanMember').value;
+      const principal = document.getElementById('loanPrincipal').value;
+      const rate = document.getElementById('loanRate').value;
+      const tenure = document.getElementById('loanTenure').value;
+      const purpose = document.getElementById('loanPurpose').value;
+      const btn = document.getElementById('loanAppSubmitBtn');
+      const msgEl = document.getElementById('loanAppMsg');
+      msgEl.textContent = '';
+      msgEl.style.color = '#FF3B30';
       btn.disabled = true;
-      btn.textContent = 'Submitting...';
+      btn.textContent = 'Creating...';
 
       google.script.run
         .withSuccessHandler(function (res) {
           btn.disabled = false;
-          btn.textContent = 'Submit Application';
+          btn.textContent = 'Create Loan';
           if (res.success) {
-            renderMemberDashboard();
+            document.getElementById('loanAppForm').reset();
+            msgEl.style.color = '#34C759';
+            msgEl.textContent = 'Loan created — monthly amortization ' + fmtMoney(res.monthlyAmortization) + '.';
+            updateLoanAppCalcPreview();
           } else {
-            errorEl.textContent = res.message || 'Could not submit application.';
+            msgEl.textContent = res.message || 'Could not create loan.';
           }
         })
         .withFailureHandler(function () {
           btn.disabled = false;
-          btn.textContent = 'Submit Application';
-          errorEl.textContent = 'Something went wrong. Please try again.';
+          btn.textContent = 'Create Loan';
+          msgEl.textContent = 'Something went wrong. Please try again.';
         })
-        .submitLoanApplication(TOKEN, principal, rate, tenure, purpose);
-    }
-
-    // ---------- ADMIN HOME ----------
-    function renderAdminHome() {
-      swapApp(
-        '<div class="app-shell"><div class="topbar">' +
-        '<span>Admin &middot; ' + NAME + '</span>' +
-        '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
-        '</div>' +
-        '<div class="nav-list">' +
-        '<div class="nav-row" onclick="renderLoanApprovals()">' + iconChip('check', '#007AFF') + '<div class="nav-row-text"><div class="nav-title">Loan Approvals</div><div class="nav-sub">Review pending applications</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-row-text"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-row-text"><div class="nav-title">Contributions</div><div class="nav-sub">Log member contributions</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-row-text"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-row-text"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderMemberDetails()">' + iconChip('users', '#5AC8FA') + '<div class="nav-row-text"><div class="nav-title">Member Details</div><div class="nav-sub">Add a new member login</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '</div></div>'
-      );
-    }
-
-    // ---------- ADMIN: LOAN APPROVALS ----------
-    function renderLoanApprovals() {
-      swapApp(
-        '<div class="app-shell"><div class="topbar">' +
-        '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
-        '</div><h2>Pending Loan Applications</h2>' +
-        '<div id="approvalsContent">' + spinnerHTML() + '</div></div>',
-        function () {
-          google.script.run
-            .withSuccessHandler(function (res) {
-              if (!res.success) { document.getElementById('approvalsContent').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
-              renderApprovalsList(res.loans);
-            })
-            .withFailureHandler(function () {
-              document.getElementById('approvalsContent').innerHTML = '<div class="err">Could not load pending loans.</div>';
-            })
-            .getPendingLoans(TOKEN);
-        }
-      );
-    }
-
-    function renderApprovalsList(loans) {
-      const container = document.getElementById('approvalsContent');
-      if (!loans.length) {
-        container.innerHTML = '<div class="empty">No pending loan applications right now.</div>';
-        return;
-      }
-
-      container.innerHTML = loans.map(function (l) {
-        const h = l.loanHistory;
-        return '<div class="section approval-card" id="loan-' + l.loanId + '">' +
-          '<div class="approval-top">' +
-          '<div><strong>' + l.memberName + '</strong><div class="hint" style="margin:0">' + l.memberEmail + '</div></div>' +
-          '<div class="badge Pending">Pending</div>' +
-          '</div>' +
-          '<div class="calc-box">' +
-          '<div class="row"><span>Requested Amount</span><span>' + fmtMoney(l.principal) + '</span></div>' +
-          '<div class="row"><span>Interest Rate</span><span>' + l.interestRate + '% / month</span></div>' +
-          '<div class="row"><span>Tenure</span><span>' + l.tenureMonths + ' months</span></div>' +
-          '<div class="row total"><span>Monthly Amortization</span><span>' + fmtMoney(l.monthlyAmortization) + '</span></div>' +
-          '</div>' +
-          (l.purpose ? '<div class="hint">Purpose: ' + l.purpose + '</div>' : '') +
-          '<div class="hint">Applied ' + fmtDate(l.dateApplied) + '</div>' +
-          '<div class="member-context">' +
-          'Total contributions: <strong>' + fmtMoney(l.totalContributions) + '</strong> &middot; ' +
-          'Active loans: <strong>' + h.active + '</strong> &middot; ' +
-          'Paid off: <strong>' + h.paid + '</strong> &middot; ' +
-          'Rejected: <strong>' + h.rejected + '</strong>' +
-          '</div>' +
-          '<div class="approval-actions">' +
-          '<button onclick="decideLoan(\'' + l.loanId + '\', \'approve\')">Approve</button>' +
-          '<button class="secondary" onclick="decideLoan(\'' + l.loanId + '\', \'reject\')">Reject</button>' +
-          '</div>' +
-          '<div class="err" id="err-' + l.loanId + '"></div>' +
-          '</div>';
-      }).join('');
-    }
-
-    function decideLoan(loanId, action) {
-      const label = action === 'approve' ? 'approve' : 'reject';
-      if (!confirm('Are you sure you want to ' + label + ' this loan application?')) return;
-
-      const card = document.getElementById('loan-' + loanId);
-      const errEl = document.getElementById('err-' + loanId);
-      const buttons = card.querySelectorAll('button');
-      buttons.forEach(function (b) { b.disabled = true; });
-
-      const fn = action === 'approve' ? 'approveLoan' : 'rejectLoan';
-      google.script.run
-        .withSuccessHandler(function (res) {
-          if (res.success) {
-            card.style.opacity = '0.5';
-            card.innerHTML = '<div class="empty">' + (action === 'approve' ? 'Approved.' : 'Rejected.') + ' Refreshing...</div>';
-            setTimeout(renderLoanApprovals, 700);
-          } else {
-            buttons.forEach(function (b) { b.disabled = false; });
-            errEl.textContent = res.message || 'Could not update this loan.';
-          }
-        })
-        .withFailureHandler(function () {
-          buttons.forEach(function (b) { b.disabled = false; });
-          errEl.textContent = 'Something went wrong. Please try again.';
-        })
-        [fn](TOKEN, loanId);
+        .createLoanForMember(TOKEN, memberId, principal, rate, tenure, purpose);
     }
 
     // ---------- ADMIN: MEMBER DETAILS ----------
