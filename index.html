@@ -175,6 +175,14 @@
       padding: 0; display: flex; align-items: center; justify-content: center;
       color: var(--text-secondary); cursor: pointer;
     }
+    .icon-btn {
+      width: 30px; height: 30px; min-height: 0; padding: 0;
+      border-radius: 8px; border: none; background: var(--fill-secondary);
+      color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.15s ease, color 0.15s ease; flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--ios-blue-dark); color: #fff; }
+    .icon-btn.danger:hover { background: var(--ios-red); color: #fff; }
     .empty { font-size: 14px; color: var(--text-tertiary); text-align: center; padding: 16px 0; }
     html { scroll-behavior: smooth; }
     #app { transition: opacity 0.22s ease; opacity: 1; }
@@ -382,6 +390,32 @@
       return dt.toLocaleDateString();
     }
 
+    // Live "#,000.00" formatting for Amount fields as the user types.
+    // These fields are type="text" (not type="number") since browsers
+    // reject commas in a number input — the numeric-only keyboard on
+    // mobile still shows via inputmode="decimal".
+    function formatAmountOnInput(e) {
+      const el = e.target;
+      let raw = el.value.replace(/[^0-9.]/g, '');
+      const firstDot = raw.indexOf('.');
+      if (firstDot !== -1) {
+        raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, '');
+      }
+      const parts = raw.split('.');
+      const intPart = parts[0] ? parts[0].replace(/^0+(?=\d)/, '') : '';
+      const decPart = parts.length > 1 ? parts[1].slice(0, 2) : undefined;
+      const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
+      el.value = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
+    }
+
+    // Reads an amount field's value with the display commas stripped,
+    // ready to send to the server or use in a calculation.
+    function parseAmountValue(id) {
+      const el = document.getElementById(id);
+      if (!el) return '';
+      return (el.value || '').replace(/,/g, '');
+    }
+
     // ---------- iOS-style colored icon chips (monoline, 1.8px stroke) ----------
     const ICONS = {
       check: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
@@ -392,7 +426,9 @@
       chevron: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
       users: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
       eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>',
-      eyeOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>'
+      eyeOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
+      pencil: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+      trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
     };
     function iconChip(iconKey, colorHex) {
       // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
@@ -658,7 +694,7 @@
         '<label>Member</label>' +
         '<select id="loanMember" required>' + options + '</select>' +
         '<label>Loan Amount</label>' +
-        '<input type="number" id="loanPrincipal" min="1" step="0.01" required>' +
+        '<input type="text" inputmode="decimal" id="loanPrincipal" oninput="formatAmountOnInput(event)" required>' +
         '<label>Interest Rate (% per month)</label>' +
         '<input type="number" id="loanRate" min="' + minRate + '" max="' + maxRate + '" step="0.1" value="' + defaultRate + '" required>' +
         '<div class="hint">Allowed range: ' + minRate + '% - ' + maxRate + '%</div>' +
@@ -686,7 +722,7 @@
     // TotalInterest = Principal * (Rate/100) * TenureMonths
     // MonthlyAmortization = (Principal + TotalInterest) / TenureMonths
     function updateLoanAppCalcPreview() {
-      const principal = Number(document.getElementById('loanPrincipal').value) || 0;
+      const principal = Number(parseAmountValue('loanPrincipal')) || 0;
       const rate = Number(document.getElementById('loanRate').value) || 0;
       const tenure = Number(document.getElementById('loanTenure').value) || 0;
       const box = document.getElementById('loanAppCalcBox');
@@ -708,7 +744,7 @@
     function submitAdminLoan(e) {
       e.preventDefault();
       const memberId = document.getElementById('loanMember').value;
-      const principal = document.getElementById('loanPrincipal').value;
+      const principal = parseAmountValue('loanPrincipal');
       const rate = document.getElementById('loanRate').value;
       const tenure = document.getElementById('loanTenure').value;
       const purpose = document.getElementById('loanPurpose').value;
@@ -741,6 +777,9 @@
     }
 
     // ---------- ADMIN: MEMBER DETAILS ----------
+    let EDITING_MEMBER_ID = null;
+    let MEMBERS_CACHE = [];
+
     function renderMemberDetails() {
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
@@ -759,12 +798,13 @@
         '<label>Password</label>' +
         '<input type="password" id="memberPassword" required autocomplete="new-password" placeholder="min. 6 characters">' +
         '<button type="submit" id="memberSubmitBtn">Add Member</button>' +
+        '<button type="button" class="secondary" id="memberCancelBtn" style="display:none" onclick="cancelEditMember()">Cancel Edit</button>' +
         '<div id="memberFormMsg" class="err"></div>' +
         '</form></div>' +
         '<h2>Existing Members</h2>' +
         '<div id="memberListContent">' + spinnerHTML() + '</div></div>',
         function () {
-          document.getElementById('memberForm').addEventListener('submit', submitCreateMember);
+          document.getElementById('memberForm').addEventListener('submit', submitMemberForm);
           loadMemberList();
         }
       );
@@ -776,9 +816,14 @@
       google.script.run
         .withSuccessHandler(function (res) {
           if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          MEMBERS_CACHE = res.members;
           if (!res.members.length) { el.innerHTML = '<div class="empty">No members yet.</div>'; return; }
           el.innerHTML = '<div class="section">' + res.members.map(function (m) {
-            return '<div class="loan-row"><span>' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span><span class="hint" style="margin:0">' + m.email + '</span></div>';
+            return '<div class="loan-row"><span>' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span>' +
+              '<span style="display:flex;gap:6px;align-items:center">' +
+              '<button type="button" class="icon-btn" onclick="startEditMember(\'' + m.memberId + '\')" aria-label="Edit member">' + ICONS.pencil + '</button>' +
+              '<button type="button" class="icon-btn danger" onclick="confirmDeleteMember(\'' + m.memberId + '\')" aria-label="Delete member">' + ICONS.trash + '</button>' +
+              '</span></div>';
           }).join('') + '</div>';
         })
         .withFailureHandler(function () {
@@ -787,7 +832,56 @@
         .getActiveMembers(TOKEN);
     }
 
-    function submitCreateMember(e) {
+    function startEditMember(memberId) {
+      const m = MEMBERS_CACHE.find(function (x) { return x.memberId === memberId; });
+      if (!m) return;
+      EDITING_MEMBER_ID = memberId;
+      document.getElementById('memberName').value = m.fullName;
+      document.getElementById('memberIdInput').value = m.memberId;
+      document.getElementById('memberIdInput').disabled = true;
+      document.getElementById('memberUsername').value = m.username;
+      document.getElementById('memberEmail').value = m.email;
+      document.getElementById('memberPassword').value = '';
+      document.getElementById('memberPassword').required = false;
+      document.getElementById('memberPassword').placeholder = 'Leave blank to keep current password';
+      document.getElementById('memberSubmitBtn').textContent = 'Save Changes';
+      document.getElementById('memberCancelBtn').style.display = 'block';
+      document.getElementById('memberFormMsg').textContent = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEditMember() {
+      EDITING_MEMBER_ID = null;
+      document.getElementById('memberForm').reset();
+      document.getElementById('memberIdInput').disabled = false;
+      document.getElementById('memberPassword').required = true;
+      document.getElementById('memberPassword').placeholder = 'min. 6 characters';
+      document.getElementById('memberSubmitBtn').textContent = 'Add Member';
+      document.getElementById('memberCancelBtn').style.display = 'none';
+      document.getElementById('memberFormMsg').textContent = '';
+    }
+
+    function confirmDeleteMember(memberId) {
+      const m = MEMBERS_CACHE.find(function (x) { return x.memberId === memberId; });
+      const name = m ? m.fullName : 'this member';
+      if (!confirm('Deactivate ' + name + '? They will no longer be able to log in. Their contribution and loan history is preserved.')) return;
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            if (EDITING_MEMBER_ID === memberId) cancelEditMember();
+            loadMemberList();
+          } else {
+            alert(res.message || 'Could not deactivate member.');
+          }
+        })
+        .withFailureHandler(function () {
+          alert('Something went wrong. Please try again.');
+        })
+        .deactivateMember(TOKEN, memberId);
+    }
+
+    function submitMemberForm(e) {
       e.preventDefault();
       const fullName = document.getElementById('memberName').value;
       const memberId = document.getElementById('memberIdInput').value;
@@ -796,30 +890,37 @@
       const password = document.getElementById('memberPassword').value;
       const btn = document.getElementById('memberSubmitBtn');
       const msgEl = document.getElementById('memberFormMsg');
+      const isEdit = !!EDITING_MEMBER_ID;
       msgEl.textContent = '';
       msgEl.style.color = '#FF3B30';
       btn.disabled = true;
-      btn.textContent = 'Adding...';
+      btn.textContent = isEdit ? 'Saving...' : 'Adding...';
 
-      google.script.run
-        .withSuccessHandler(function (res) {
-          btn.disabled = false;
-          btn.textContent = 'Add Member';
-          if (res.success) {
-            document.getElementById('memberForm').reset();
-            msgEl.style.color = '#34C759';
-            msgEl.textContent = 'Member added.';
-            loadMemberList();
-          } else {
-            msgEl.textContent = res.message || 'Could not add member.';
-          }
-        })
-        .withFailureHandler(function () {
-          btn.disabled = false;
-          btn.textContent = 'Add Member';
-          msgEl.textContent = 'Something went wrong. Please try again.';
-        })
-        .createMember(TOKEN, fullName, memberId, username, email, password);
+      const onSuccess = function (res) {
+        btn.disabled = false;
+        btn.textContent = isEdit ? 'Save Changes' : 'Add Member';
+        if (res.success) {
+          msgEl.style.color = '#34C759';
+          msgEl.textContent = isEdit ? 'Member updated.' : 'Member added.';
+          if (isEdit) { cancelEditMember(); } else { document.getElementById('memberForm').reset(); }
+          loadMemberList();
+        } else {
+          msgEl.textContent = res.message || (isEdit ? 'Could not update member.' : 'Could not add member.');
+        }
+      };
+      const onFailure = function () {
+        btn.disabled = false;
+        btn.textContent = isEdit ? 'Save Changes' : 'Add Member';
+        msgEl.textContent = 'Something went wrong. Please try again.';
+      };
+
+      if (isEdit) {
+        google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure)
+          .updateMember(TOKEN, memberId, fullName, username, email, password);
+      } else {
+        google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure)
+          .createMember(TOKEN, fullName, memberId, username, email, password);
+      }
     }
 
     // ---------- ADMIN: LOAN REPAYMENTS ----------
@@ -869,7 +970,7 @@
           '</div>' +
           '<div id="repayForm-' + l.loanId + '" style="display:none;margin-top:12px">' +
           '<label>Amount Paid</label>' +
-          '<input type="number" id="repayAmount-' + l.loanId + '" min="0.01" step="0.01" value="' + l.monthlyAmortization + '">' +
+          '<input type="text" inputmode="decimal" id="repayAmount-' + l.loanId + '" oninput="formatAmountOnInput(event)" value="' + fmtMoney(l.monthlyAmortization) + '">' +
           '<label>Payment Date</label>' +
           '<input type="date" id="repayDate-' + l.loanId + '" value="' + today + '">' +
           '<button onclick="submitRepayment(\'' + l.loanId + '\')" id="repaySubmit-' + l.loanId + '">Save Payment</button>' +
@@ -907,7 +1008,7 @@
     }
 
     function submitRepayment(loanId) {
-      const amount = document.getElementById('repayAmount-' + loanId).value;
+      const amount = parseAmountValue('repayAmount-' + loanId);
       const date = document.getElementById('repayDate-' + loanId).value;
       const btn = document.getElementById('repaySubmit-' + loanId);
       const errEl = document.getElementById('repayErr-' + loanId);
@@ -990,7 +1091,7 @@
       row.id = 'bulkRow-' + idx;
       row.innerHTML =
         '<select id="bulkMember-' + idx + '">' + options + '</select>' +
-        '<input type="number" id="bulkAmount-' + idx + '" placeholder="Amount" min="1" step="0.01">' +
+        '<input type="text" inputmode="decimal" id="bulkAmount-' + idx + '" placeholder="Amount" oninput="formatAmountOnInput(event)">' +
         '<input type="date" id="bulkDate-' + idx + '">' +
         '<input type="text" id="bulkRef-' + idx + '" placeholder="Ref (optional)">' +
         '<button type="button" class="link-btn" onclick="document.getElementById(\'bulkRow-' + idx + '\').remove()">Remove</button>';
@@ -1010,7 +1111,7 @@
       rows.forEach(function (row) {
         const idx = row.id.split('-')[1];
         const memberId = document.getElementById('bulkMember-' + idx).value;
-        const amount = document.getElementById('bulkAmount-' + idx).value;
+        const amount = parseAmountValue('bulkAmount-' + idx);
         const date = document.getElementById('bulkDate-' + idx).value;
         const ref = document.getElementById('bulkRef-' + idx).value;
         if (!memberId || !amount || !date) valid = false;
@@ -1145,7 +1246,7 @@
         '<label>Year</label>' +
         '<input type="number" id="divYear" value="' + defaultYear + '" step="1">' +
         '<label>Net Cooperative Earnings for the Year</label>' +
-        '<input type="number" id="divEarnings" step="0.01" placeholder="e.g. 150000">' +
+        '<input type="text" inputmode="decimal" id="divEarnings" oninput="formatAmountOnInput(event)" placeholder="e.g. 150,000.00">' +
         '<div class="hint">Dividend pool = this amount x DividendPoolPercent from Settings.</div>' +
         '<button onclick="previewDividends()" id="previewBtn">Preview Calculation</button>' +
         '<div id="divError" class="err"></div>' +
@@ -1156,7 +1257,7 @@
 
     function previewDividends() {
       const year = document.getElementById('divYear').value;
-      const earnings = document.getElementById('divEarnings').value;
+      const earnings = parseAmountValue('divEarnings');
       const errEl = document.getElementById('divError');
       const btn = document.getElementById('previewBtn');
       errEl.textContent = '';
