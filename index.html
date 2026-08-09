@@ -278,6 +278,32 @@
     }
     .bulk-row select, .bulk-row input { margin-bottom: 0; grid-column: span 1; }
     .bulk-row button { grid-column: span 2; width: auto; justify-self: start; min-height: 36px; padding: 8px 18px; font-size: 14px; }
+    @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.94) translateY(6px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 20px;
+      animation: modalFadeIn 0.15s ease-out both;
+    }
+    .modal-card {
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+      border: 1px solid var(--card-border); border-radius: 22px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      padding: 26px 24px; width: 100%; max-width: 340px;
+      text-align: center;
+      animation: modalPop 0.18s cubic-bezier(.2,.8,.3,1.2) both;
+    }
+    .modal-card h2 { justify-content: center; border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
+    .modal-card p { font-size: 14px; color: var(--text-secondary); margin: 0 0 22px; line-height: 1.4; }
+    .modal-card button { margin-bottom: 10px; }
+    .modal-card button:last-child { margin-bottom: 0; }
+
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; }
     }
@@ -291,6 +317,7 @@
     </div>
   </header>
   <div id="app"></div>
+  <div id="modalRoot"></div>
 
 
   <script>
@@ -414,6 +441,48 @@
       const el = document.getElementById(id);
       if (!el) return '';
       return (el.value || '').replace(/,/g, '');
+    }
+
+    // ---------- In-app modal (replaces native confirm()/alert()) ----------
+    function showConfirmModal(opts) {
+      const root = document.getElementById('modalRoot');
+      const confirmStyle = opts.danger ? 'background:var(--ios-red);border-color:var(--ios-red);' : '';
+      root.innerHTML =
+        '<div class="modal-overlay" id="modalOverlay">' +
+        '<div class="modal-card">' +
+        '<h2>' + (opts.title || 'Are you sure?') + '</h2>' +
+        '<p>' + opts.message + '</p>' +
+        '<button id="modalConfirmBtn" style="' + confirmStyle + '">' + (opts.confirmLabel || 'Confirm') + '</button>' +
+        '<button class="secondary" id="modalCancelBtn">' + (opts.cancelLabel || 'Cancel') + '</button>' +
+        '</div></div>';
+
+      document.getElementById('modalCancelBtn').onclick = closeModal;
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+      document.getElementById('modalConfirmBtn').onclick = function () {
+        closeModal();
+        if (opts.onConfirm) opts.onConfirm();
+      };
+    }
+
+    function showInfoModal(message, title) {
+      const root = document.getElementById('modalRoot');
+      root.innerHTML =
+        '<div class="modal-overlay" id="modalOverlay">' +
+        '<div class="modal-card">' +
+        '<h2>' + (title || 'Notice') + '</h2>' +
+        '<p>' + message + '</p>' +
+        '<button id="modalOkBtn">OK</button>' +
+        '</div></div>';
+      document.getElementById('modalOkBtn').onclick = closeModal;
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+    }
+
+    function closeModal() {
+      document.getElementById('modalRoot').innerHTML = '';
     }
 
     // ---------- iOS-style colored icon chips (monoline, 1.8px stroke) ----------
@@ -833,8 +902,8 @@
     }
 
     function startEditMember(memberId) {
-      const m = MEMBERS_CACHE.find(function (x) { return x.memberId === memberId; });
-      if (!m) return;
+      const m = MEMBERS_CACHE.find(function (x) { return String(x.memberId) === String(memberId); });
+      if (!m) { showInfoModal('Could not find that member — try refreshing the list.', 'Error'); return; }
       EDITING_MEMBER_ID = memberId;
       document.getElementById('memberName').value = m.fullName;
       document.getElementById('memberIdInput').value = m.memberId;
@@ -862,23 +931,30 @@
     }
 
     function confirmDeleteMember(memberId) {
-      const m = MEMBERS_CACHE.find(function (x) { return x.memberId === memberId; });
+      const m = MEMBERS_CACHE.find(function (x) { return String(x.memberId) === String(memberId); });
       const name = m ? m.fullName : 'this member';
-      if (!confirm('Deactivate ' + name + '? They will no longer be able to log in. Their contribution and loan history is preserved.')) return;
 
-      google.script.run
-        .withSuccessHandler(function (res) {
-          if (res.success) {
-            if (EDITING_MEMBER_ID === memberId) cancelEditMember();
-            loadMemberList();
-          } else {
-            alert(res.message || 'Could not deactivate member.');
-          }
-        })
-        .withFailureHandler(function () {
-          alert('Something went wrong. Please try again.');
-        })
-        .deactivateMember(TOKEN, memberId);
+      showConfirmModal({
+        title: 'Deactivate Member',
+        message: 'Deactivate ' + name + '? They will no longer be able to log in. Their contribution and loan history is preserved.',
+        confirmLabel: 'Deactivate',
+        danger: true,
+        onConfirm: function () {
+          google.script.run
+            .withSuccessHandler(function (res) {
+              if (res.success) {
+                if (EDITING_MEMBER_ID === memberId) cancelEditMember();
+                loadMemberList();
+              } else {
+                showInfoModal(res.message || 'Could not deactivate member.', 'Error');
+              }
+            })
+            .withFailureHandler(function () {
+              showInfoModal('Something went wrong. Please try again.', 'Error');
+            })
+            .deactivateMember(TOKEN, memberId);
+        }
+      });
     }
 
     function submitMemberForm(e) {
@@ -1322,7 +1398,13 @@
             msg = 'There are already ' + statusRes.count + ' dividend record(s) for ' + year +
               '. Saving will REPLACE them with this calculation. Continue?';
           }
-          if (confirm(msg)) commitDividends();
+          showConfirmModal({
+            title: 'Save Dividends',
+            message: msg,
+            confirmLabel: 'Save',
+            danger: statusRes.exists,
+            onConfirm: commitDividends
+          });
         })
         .withFailureHandler(function () {
           document.getElementById('commitError').textContent = 'Could not check existing records.';
