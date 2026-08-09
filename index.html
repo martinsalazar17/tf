@@ -161,8 +161,19 @@
     .hint { font-size: 12.5px; color: var(--text-secondary); margin-top: -10px; margin-bottom: 14px; }
     .link-btn {
       background: none; border: none; color: var(--ios-blue); font-size: 15px;
-      cursor: pointer; width: auto; padding: 0; min-height: 0;
+      cursor: pointer; width: auto; padding: 5px 10px; min-height: 0;
       font-weight: 500; font-family: var(--font-system);
+      border-radius: 8px; transition: background 0.15s ease, color 0.15s ease;
+    }
+    .link-btn:hover { background: var(--ios-blue-dark); color: #fff; }
+    .link-btn:active { background: var(--ios-blue); color: #fff; }
+    .password-field { position: relative; margin-bottom: 16px; }
+    .password-field input { margin-bottom: 0; padding-right: 42px; }
+    .password-toggle {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; width: 32px; height: 32px; min-height: 0;
+      padding: 0; display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary); cursor: pointer;
     }
     .empty { font-size: 14px; color: var(--text-tertiary); text-align: center; padding: 16px 0; }
     html { scroll-behavior: smooth; }
@@ -379,7 +390,9 @@
       trending: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
       settings: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
       chevron: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
-      users: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+      users: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>',
+      eyeOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>'
     };
     function iconChip(iconKey, colorHex) {
       // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
@@ -418,7 +431,10 @@
         '<label for="username">Username</label>' +
         '<input type="text" id="username" required autocomplete="username">' +
         '<label for="password">Password</label>' +
+        '<div class="password-field">' +
         '<input type="password" id="password" required autocomplete="current-password">' +
+        '<button type="button" class="password-toggle" id="passwordToggle" onclick="togglePasswordVisibility()" aria-label="Show password">' + ICONS.eye + '</button>' +
+        '</div>' +
         '<button type="submit" id="submitBtn">Log In</button>' +
         '<div id="error"></div>' +
         '</form></div></div>',
@@ -426,6 +442,20 @@
           document.getElementById('loginForm').addEventListener('submit', handleLogin);
         }
       );
+    }
+
+    function togglePasswordVisibility() {
+      const input = document.getElementById('password');
+      const btn = document.getElementById('passwordToggle');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerHTML = ICONS.eyeOff;
+        btn.setAttribute('aria-label', 'Hide password');
+      } else {
+        input.type = 'password';
+        btn.innerHTML = ICONS.eye;
+        btn.setAttribute('aria-label', 'Show password');
+      }
     }
 
     function handleLogin(e) {
