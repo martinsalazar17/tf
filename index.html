@@ -415,8 +415,8 @@
         '<h1>Finance Sinking Fund</h1>' +
         '<p class="sub">Sign in with the credentials given to you.</p>' +
         '<form id="loginForm">' +
-        '<label for="email">Email / Username</label>' +
-        '<input type="text" id="email" required autocomplete="username">' +
+        '<label for="username">Username</label>' +
+        '<input type="text" id="username" required autocomplete="username">' +
         '<label for="password">Password</label>' +
         '<input type="password" id="password" required autocomplete="current-password">' +
         '<button type="submit" id="submitBtn">Log In</button>' +
@@ -430,7 +430,7 @@
 
     function handleLogin(e) {
       e.preventDefault();
-      const email = document.getElementById('email').value.trim();
+      const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
       const btn = document.getElementById('submitBtn');
       const errorEl = document.getElementById('error');
@@ -457,7 +457,7 @@
           btn.textContent = 'Log In';
           errorEl.textContent = 'Something went wrong. Please try again.';
         })
-        .login(email, password);
+        .login(username, password);
     }
 
     // ---------- MEMBER DASHBOARD ----------
@@ -809,6 +809,8 @@
         '<input type="text" id="memberIdInput" required placeholder="e.g. 001">' +
         '<label>Username</label>' +
         '<input type="text" id="memberUsername" required autocomplete="off" placeholder="used to log in">' +
+        '<label>Email Address</label>' +
+        '<input type="email" id="memberEmail" required autocomplete="off" placeholder="for transaction alerts">' +
         '<label>Password</label>' +
         '<input type="password" id="memberPassword" required autocomplete="new-password" placeholder="min. 6 characters">' +
         '<button type="submit" id="memberSubmitBtn">Add Member</button>' +
@@ -831,7 +833,7 @@
           if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
           if (!res.members.length) { el.innerHTML = '<div class="empty">No members yet.</div>'; return; }
           el.innerHTML = '<div class="section">' + res.members.map(function (m) {
-            return '<div class="loan-row"><span>' + m.fullName + '</span><span class="hint" style="margin:0">' + m.email + '</span></div>';
+            return '<div class="loan-row"><span>' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span><span class="hint" style="margin:0">' + m.email + '</span></div>';
           }).join('') + '</div>';
         })
         .withFailureHandler(function () {
@@ -845,6 +847,7 @@
       const fullName = document.getElementById('memberName').value;
       const memberId = document.getElementById('memberIdInput').value;
       const username = document.getElementById('memberUsername').value;
+      const email = document.getElementById('memberEmail').value;
       const password = document.getElementById('memberPassword').value;
       const btn = document.getElementById('memberSubmitBtn');
       const msgEl = document.getElementById('memberFormMsg');
@@ -871,7 +874,7 @@
           btn.textContent = 'Add Member';
           msgEl.textContent = 'Something went wrong. Please try again.';
         })
-        .createMember(TOKEN, fullName, memberId, username, password);
+        .createMember(TOKEN, fullName, memberId, username, email, password);
     }
 
     // ---------- ADMIN: LOAN REPAYMENTS ----------
