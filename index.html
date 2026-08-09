@@ -506,11 +506,11 @@
         '<div class="section"><h2>My Loans</h2>' + loansHtml +
         '<button style="margin-top:12px" onclick="renderLoanForm()">Apply for a Loan</button></div>' +
         '<div class="section"><h2>Contributions</h2>' +
-        '<button onclick="renderContributionLedger()">View / Submit Contributions</button></div>' +
+        '<button onclick="renderContributionLedger()">View Contributions</button></div>' +
         '<div class="section"><h2>Dividend History</h2>' + divHtml + '</div>';
     }
 
-    // ---------- MEMBER: CONTRIBUTION LEDGER ----------
+    // ---------- MEMBER: CONTRIBUTION LEDGER (view-only) ----------
     function renderContributionLedger() {
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
@@ -531,7 +531,7 @@
     }
 
     function renderLedgerContent(contributions) {
-      let rowsHtml = '<div class="empty">No contributions submitted yet.</div>';
+      let rowsHtml = '<div class="empty">No contributions logged yet.</div>';
       if (contributions.length) {
         rowsHtml = contributions.map(function (c) {
           return '<div class="loan-row"><span>' + fmtDate(c.paymentDate) + ' &middot; ' + fmtMoney(c.amount) +
@@ -541,47 +541,7 @@
       }
 
       document.getElementById('ledgerContent').innerHTML =
-        '<div class="section"><h2>Submit a Payment</h2>' +
-        '<form id="contribForm">' +
-        '<label>Amount</label>' +
-        '<input type="number" id="contribAmount" min="1" step="0.01" required>' +
-        '<label>Payment Date</label>' +
-        '<input type="date" id="contribDate" required>' +
-        '<label>Reference / Note (optional)</label>' +
-        '<input type="text" id="contribRef" placeholder="e.g. bank ref no., cash to admin">' +
-        '<button type="submit" id="contribBtn">Submit for Verification</button>' +
-        '<div id="contribError" class="err"></div>' +
-        '</form></div>' +
-        '<div class="section"><h2>History</h2>' + rowsHtml + '</div>';
-
-      document.getElementById('contribForm').addEventListener('submit', function (e) {
-        e.preventDefault();
-        const amount = document.getElementById('contribAmount').value;
-        const date = document.getElementById('contribDate').value;
-        const ref = document.getElementById('contribRef').value;
-        const btn = document.getElementById('contribBtn');
-        const errEl = document.getElementById('contribError');
-        errEl.textContent = '';
-        btn.disabled = true;
-        btn.textContent = 'Submitting...';
-
-        google.script.run
-          .withSuccessHandler(function (res) {
-            btn.disabled = false;
-            btn.textContent = 'Submit for Verification';
-            if (res.success) {
-              renderContributionLedger();
-            } else {
-              errEl.textContent = res.message || 'Could not submit.';
-            }
-          })
-          .withFailureHandler(function () {
-            btn.disabled = false;
-            btn.textContent = 'Submit for Verification';
-            errEl.textContent = 'Something went wrong. Please try again.';
-          })
-          .submitContribution(TOKEN, amount, date, ref);
-      });
+        '<div class="section"><h2>Contribution History</h2>' + rowsHtml + '</div>';
     }
 
     // ---------- LOAN APPLICATION ----------
@@ -701,7 +661,7 @@
         '<div class="nav-list">' +
         '<div class="nav-row" onclick="renderLoanApprovals()">' + iconChip('check', '#007AFF') + '<div class="nav-row-text"><div class="nav-title">Loan Approvals</div><div class="nav-sub">Review pending applications</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-row-text"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-row-text"><div class="nav-title">Contributions</div><div class="nav-sub">Verify &amp; log deductions</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-row-text"><div class="nav-title">Contributions</div><div class="nav-sub">Log member contributions</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-row-text"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-row-text"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderMemberDetails()">' + iconChip('users', '#5AC8FA') + '<div class="nav-row-text"><div class="nav-title">Member Details</div><div class="nav-sub">Add a new member login</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
@@ -1002,85 +962,13 @@
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
-        '</div>' +
-        '<div class="tabs">' +
-        '<button id="tabPending" class="tab active" onclick="switchContribTab(\'pending\')">Pending Verification</button>' +
-        '<button id="tabBulk" class="tab" onclick="switchContribTab(\'bulk\')">Log Deductions</button>' +
-        '</div>' +
-        '<div id="pendingPane">' + spinnerHTML() + '</div>' +
-        '<div id="bulkPane" style="display:none"></div>' +
+        '</div><h2>Log Contributions</h2>' +
+        '<div id="bulkPane">' + spinnerHTML() + '</div>' +
         '</div>',
         function () {
-          loadPendingContributions();
+          loadBulkLogForm();
         }
       );
-    }
-
-    function switchContribTab(tab) {
-      document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
-      document.getElementById('tabBulk').classList.toggle('active', tab === 'bulk');
-      document.getElementById('pendingPane').style.display = tab === 'pending' ? 'block' : 'none';
-      document.getElementById('bulkPane').style.display = tab === 'bulk' ? 'block' : 'none';
-      if (tab === 'bulk' && !ACTIVE_MEMBERS.length) loadBulkLogForm();
-    }
-
-    function loadPendingContributions() {
-      google.script.run
-        .withSuccessHandler(function (res) {
-          if (!res.success) { document.getElementById('pendingPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
-          renderPendingContributions(res.contributions);
-        })
-        .withFailureHandler(function () {
-          document.getElementById('pendingPane').innerHTML = '<div class="err">Could not load pending contributions.</div>';
-        })
-        .getPendingContributions(TOKEN);
-    }
-
-    function renderPendingContributions(items) {
-      const pane = document.getElementById('pendingPane');
-      if (!items.length) {
-        pane.innerHTML = '<div class="empty">No contributions waiting for verification.</div>';
-        return;
-      }
-      pane.innerHTML = items.map(function (c) {
-        return '<div class="section approval-card" id="contrib-' + c.transId + '">' +
-          '<div class="approval-top">' +
-          '<div><strong>' + c.memberName + '</strong><div class="hint" style="margin:0">' + fmtDate(c.paymentDate) + '</div></div>' +
-          '<div class="badge Pending">' + fmtMoney(c.amount) + '</div>' +
-          '</div>' +
-          (c.reference ? '<div class="hint">Ref: ' + c.reference + '</div>' : '') +
-          '<div class="approval-actions">' +
-          '<button onclick="decideContribution(\'' + c.transId + '\', \'verify\')">Verify</button>' +
-          '<button class="secondary" onclick="decideContribution(\'' + c.transId + '\', \'reject\')">Reject</button>' +
-          '</div>' +
-          '<div class="err" id="cerr-' + c.transId + '"></div>' +
-          '</div>';
-      }).join('');
-    }
-
-    function decideContribution(transId, action) {
-      if (!confirm('Are you sure you want to ' + action + ' this contribution?')) return;
-      const card = document.getElementById('contrib-' + transId);
-      const errEl = document.getElementById('cerr-' + transId);
-      const buttons = card.querySelectorAll('button');
-      buttons.forEach(function (b) { b.disabled = true; });
-
-      const fn = action === 'verify' ? 'verifyContribution' : 'rejectContribution';
-      google.script.run
-        .withSuccessHandler(function (res) {
-          if (res.success) {
-            card.innerHTML = '<div class="empty">' + (action === 'verify' ? 'Verified.' : 'Rejected.') + ' Refreshing...</div>';
-            setTimeout(loadPendingContributions, 700);
-          } else {
-            buttons.forEach(function (b) { b.disabled = false; });
-            errEl.textContent = res.message || 'Could not update this entry.';
-          }
-        })
-        .withFailureHandler(function () {
-          buttons.forEach(function (b) { b.disabled = false; });
-          errEl.textContent = 'Something went wrong. Please try again.';
-        })
-        [fn](TOKEN, transId);
     }
 
     function loadBulkLogForm() {
@@ -1091,12 +979,13 @@
           ACTIVE_MEMBERS = res.members;
           BULK_ROWS = 0;
           document.getElementById('bulkPane').innerHTML =
-            '<div class="section"><h2>Log Contributions</h2>' +
-            '<p class="hint">These are logged as already Verified since you\'re entering them directly.</p>' +
+            '<div class="section">' +
+            '<p class="hint">Record a contribution a member handed you or transferred, as soon as it comes in.</p>' +
             '<div id="bulkRows"></div>' +
             '<button class="secondary" type="button" onclick="addBulkRow()">+ Add Row</button>' +
-            '<button style="margin-top:10px" onclick="submitBulkLog()">Save All</button>' +
+            '<button style="margin-top:10px" onclick="submitBulkLog()">Save</button>' +
             '<div id="bulkError" class="err"></div>' +
+            '<div id="bulkSuccess" style="color:#34C759;font-size:13px;margin-top:8px"></div>' +
             '</div>';
           addBulkRow();
         })
@@ -1126,7 +1015,9 @@
     function submitBulkLog() {
       const rows = document.querySelectorAll('.bulk-row');
       const errEl = document.getElementById('bulkError');
+      const successEl = document.getElementById('bulkSuccess');
       errEl.textContent = '';
+      successEl.textContent = '';
       if (!rows.length) { errEl.textContent = 'Add at least one row.'; return; }
 
       const entries = [];
@@ -1145,9 +1036,8 @@
       google.script.run
         .withSuccessHandler(function (res) {
           if (res.success) {
-            switchContribTab('pending');
-            loadPendingContributions();
-            ACTIVE_MEMBERS = [];
+            successEl.textContent = 'Logged ' + res.count + ' contribution(s).';
+            loadBulkLogForm();
           } else {
             errEl.textContent = res.message || 'Could not save entries.';
           }
