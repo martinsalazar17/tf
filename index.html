@@ -305,6 +305,15 @@
     .modal-card button { margin-bottom: 10px; }
     .modal-card button:last-child { margin-bottom: 0; }
 
+    @media print {
+      .brandbar, .no-print { display: none !important; }
+      body { background: #fff !important; }
+      .app-shell { max-width: 100%; padding: 0; }
+      .section {
+        background: #fff !important; box-shadow: none !important; border: none !important;
+        -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+      }
+    }
     @media (prefers-reduced-motion: reduce) {
       * { transition: none !important; }
     }
@@ -1153,16 +1162,55 @@
     let BULK_ROWS = 0;
     let ACTIVE_MEMBERS = [];
 
+    // Default view: the full transaction list, sorted by Date Transacted.
     function renderAdminContributions() {
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
         '</div><h2>Contributions</h2>' +
-        '<div id="bulkPane">' + spinnerHTML() + '</div>' +
-        '</div>',
+        '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+        '<button onclick="renderAddContributionForm()">+ Add Contribution</button>' +
+        '<button class="secondary" onclick="renderWithdrawForm()">&minus; Withdraw</button>' +
+        '</div>' +
+        '<button class="secondary" style="margin-bottom:16px" onclick="renderStatementGenerator()">Generate Statement</button>' +
+        '<div id="txnListContent">' + spinnerHTML() + '</div></div>',
         function () {
-          loadBulkLogForm();
+          loadTransactionList();
         }
+      );
+    }
+
+    function loadTransactionList() {
+      const el = document.getElementById('txnListContent');
+      el.innerHTML = spinnerHTML();
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          if (!res.transactions.length) { el.innerHTML = '<div class="empty">No transactions logged yet.</div>'; return; }
+          el.innerHTML = '<div class="section">' + res.transactions.map(function (t) {
+            return '<div class="loan-row"><span>' +
+              '<strong>' + t.memberName + '</strong><br>' +
+              '<span class="hint" style="margin:0">' + fmtDate(t.paymentDate) + ' &middot; Ref# ' + t.transId +
+              (t.reference ? ' &middot; ' + t.reference : '') + '</span>' +
+              '</span>' +
+              '<span class="badge ' + (t.isWithdrawal ? 'Rejected' : 'Verified') + '">' + fmtMoney(t.amount) + '</span>' +
+              '</div>';
+          }).join('') + '</div>';
+        })
+        .withFailureHandler(function () {
+          el.innerHTML = '<div class="err">Could not load transactions.</div>';
+        })
+        .getAllContributionTransactions(TOKEN);
+    }
+
+    // ---------- Add Contribution (its own screen now, not the default view) ----------
+    function renderAddContributionForm() {
+      swapApp(
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminContributions()">&larr; Back to Contributions</button>' +
+        '</div><h2>Add Contribution</h2>' +
+        '<div id="bulkPane">' + spinnerHTML() + '</div></div>',
+        function () { loadBulkLogForm(); }
       );
     }
 
@@ -1173,33 +1221,14 @@
           if (!res.success) { document.getElementById('bulkPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
           ACTIVE_MEMBERS = res.members;
           BULK_ROWS = 0;
-          const memberOptions = ACTIVE_MEMBERS.map(function (m) {
-            return '<option value="' + m.memberId + '">' + m.fullName + '</option>';
-          }).join('');
           document.getElementById('bulkPane').innerHTML =
             '<div class="section">' +
-            '<h2>Log Contributions</h2>' +
             '<p class="hint">Record a contribution a member handed you or transferred, as soon as it comes in.</p>' +
             '<div id="bulkRows"></div>' +
             '<button class="secondary" type="button" onclick="addBulkRow()">+ Add Row</button>' +
             '<button style="margin-top:10px" onclick="submitBulkLog()">Save</button>' +
             '<div id="bulkError" class="err"></div>' +
             '<div id="bulkSuccess" style="color:#34C759;font-size:13px;margin-top:8px"></div>' +
-            '</div>' +
-            '<div class="section">' +
-            '<h2>Withdraw Contribution</h2>' +
-            '<p class="hint">Withdrawals are capped at the member\'s current contribution balance.</p>' +
-            '<label>Member</label>' +
-            '<select id="withdrawMember">' + memberOptions + '</select>' +
-            '<label>Amount</label>' +
-            '<input type="text" inputmode="decimal" id="withdrawAmount" placeholder="Amount" oninput="formatAmountOnInput(event)">' +
-            '<label>Date</label>' +
-            '<input type="date" id="withdrawDate">' +
-            '<label>Note (optional)</label>' +
-            '<input type="text" id="withdrawNote" placeholder="e.g. reason for withdrawal">' +
-            '<button onclick="submitWithdrawal()" id="withdrawBtn">Withdraw</button>' +
-            '<div id="withdrawError" class="err"></div>' +
-            '<div id="withdrawSuccess" style="color:#34C759;font-size:13px;margin-top:8px"></div>' +
             '</div>';
           addBulkRow();
         })
@@ -1250,8 +1279,7 @@
       google.script.run
         .withSuccessHandler(function (res) {
           if (res.success) {
-            successEl.textContent = 'Logged ' + res.count + ' contribution(s).';
-            loadBulkLogForm();
+            renderAdminContributions();
           } else {
             errEl.textContent = res.message || 'Could not save entries.';
           }
@@ -1260,6 +1288,46 @@
           errEl.textContent = 'Something went wrong. Please try again.';
         })
         .bulkLogContributions(TOKEN, entries);
+    }
+
+    // ---------- Withdraw Contribution (its own screen) ----------
+    function renderWithdrawForm() {
+      swapApp(
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminContributions()">&larr; Back to Contributions</button>' +
+        '</div><h2>Withdraw Contribution</h2>' +
+        '<div id="withdrawPane">' + spinnerHTML() + '</div></div>',
+        function () { loadWithdrawForm(); }
+      );
+    }
+
+    function loadWithdrawForm() {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('withdrawPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          const memberOptions = res.members.map(function (m) {
+            return '<option value="' + m.memberId + '">' + m.fullName + '</option>';
+          }).join('');
+          document.getElementById('withdrawPane').innerHTML =
+            '<div class="section">' +
+            '<p class="hint">Withdrawals are capped at the member\'s current contribution balance.</p>' +
+            '<label>Member</label>' +
+            '<select id="withdrawMember">' + memberOptions + '</select>' +
+            '<label>Amount</label>' +
+            '<input type="text" inputmode="decimal" id="withdrawAmount" placeholder="Amount" oninput="formatAmountOnInput(event)">' +
+            '<label>Date</label>' +
+            '<input type="date" id="withdrawDate">' +
+            '<label>Note (optional)</label>' +
+            '<input type="text" id="withdrawNote" placeholder="e.g. reason for withdrawal">' +
+            '<button onclick="submitWithdrawal()" id="withdrawBtn">Withdraw</button>' +
+            '<div id="withdrawError" class="err"></div>' +
+            '<div id="withdrawSuccess" style="color:#34C759;font-size:13px;margin-top:8px"></div>' +
+            '</div>';
+        })
+        .withFailureHandler(function () {
+          document.getElementById('withdrawPane').innerHTML = '<div class="err">Could not load members.</div>';
+        })
+        .getActiveMembers(TOKEN);
     }
 
     function submitWithdrawal() {
@@ -1283,14 +1351,11 @@
 
       google.script.run
         .withSuccessHandler(function (res) {
-          btn.disabled = false;
-          btn.textContent = 'Withdraw';
           if (res.success) {
-            successEl.textContent = 'Withdrawal processed. New balance: ' + fmtMoney(res.newBalance) + '.';
-            document.getElementById('withdrawAmount').value = '';
-            document.getElementById('withdrawDate').value = '';
-            document.getElementById('withdrawNote').value = '';
+            renderAdminContributions();
           } else {
+            btn.disabled = false;
+            btn.textContent = 'Withdraw';
             errEl.textContent = res.message || 'Could not process withdrawal.';
           }
         })
@@ -1300,6 +1365,120 @@
           errEl.textContent = 'Something went wrong. Please try again.';
         })
         .withdrawContribution(TOKEN, memberId, amount, date, note);
+    }
+
+    // ---------- Statement of Contribution generator ----------
+    function renderStatementGenerator() {
+      swapApp(
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminContributions()">&larr; Back to Contributions</button>' +
+        '</div><h2>Generate Statement</h2>' +
+        '<div id="statementPane">' + spinnerHTML() + '</div></div>',
+        function () { loadStatementForm(); }
+      );
+    }
+
+    function loadStatementForm() {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { document.getElementById('statementPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          const memberOptions = res.members.map(function (m) {
+            return '<option value="' + m.memberId + '">' + m.fullName + '</option>';
+          }).join('');
+          document.getElementById('statementPane').innerHTML =
+            '<div class="section">' +
+            '<label>Member</label>' +
+            '<select id="stmtMember">' + memberOptions + '</select>' +
+            '<label>From (optional)</label>' +
+            '<input type="date" id="stmtFrom">' +
+            '<label>To (optional)</label>' +
+            '<input type="date" id="stmtTo">' +
+            '<div class="hint">Leave both dates blank for the member\'s full history.</div>' +
+            '<button onclick="generateStatement()" id="stmtGenerateBtn">Generate Statement</button>' +
+            '<div id="stmtError" class="err"></div>' +
+            '</div>';
+        })
+        .withFailureHandler(function () {
+          document.getElementById('statementPane').innerHTML = '<div class="err">Could not load members.</div>';
+        })
+        .getActiveMembers(TOKEN);
+    }
+
+    function generateStatement() {
+      const memberId = document.getElementById('stmtMember').value;
+      const from = document.getElementById('stmtFrom').value;
+      const to = document.getElementById('stmtTo').value;
+      const btn = document.getElementById('stmtGenerateBtn');
+      const errEl = document.getElementById('stmtError');
+      errEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = 'Generate Statement';
+          if (!res.success) { errEl.textContent = res.message || 'Could not generate statement.'; return; }
+          renderStatementView(res, from, to);
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Generate Statement';
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .getMemberStatementData(TOKEN, memberId, from, to);
+    }
+
+    function renderStatementView(data, from, to) {
+      const periodLabel = (from || to)
+        ? (from ? fmtDate(from) : 'the beginning') + ' to ' + (to ? fmtDate(to) : 'today')
+        : 'All Time';
+
+      let rowsHtml = '<tr><td colspan="4" style="padding:12px 4px;text-align:center;color:var(--text-tertiary);">No transactions in this period.</td></tr>';
+      if (data.transactions.length) {
+        rowsHtml = data.transactions.map(function (t) {
+          return '<tr>' +
+            '<td style="padding:8px 4px;border-bottom:1px solid var(--hairline);">' + fmtDate(t.paymentDate) + '</td>' +
+            '<td style="padding:8px 4px;border-bottom:1px solid var(--hairline);">' + t.transId +
+            (t.reference ? '<br><span class="hint" style="margin:0">' + t.reference + '</span>' : '') + '</td>' +
+            '<td style="padding:8px 4px;border-bottom:1px solid var(--hairline);text-align:right;">' + fmtMoney(t.amount) + '</td>' +
+            '<td style="padding:8px 4px;border-bottom:1px solid var(--hairline);text-align:right;">' + fmtMoney(t.runningBalance) + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      const openingRow = (from && data.openingBalance !== 0)
+        ? '<tr><td colspan="3" style="padding:8px 4px;border-bottom:1px solid var(--hairline);font-style:italic;color:var(--text-secondary);">Opening Balance</td>' +
+          '<td style="padding:8px 4px;border-bottom:1px solid var(--hairline);text-align:right;font-style:italic;color:var(--text-secondary);">' + fmtMoney(data.openingBalance) + '</td></tr>'
+        : '';
+
+      swapApp(
+        '<div class="app-shell">' +
+        '<div class="topbar no-print">' +
+        '<button class="link-btn" onclick="renderStatementGenerator()">&larr; New Statement</button>' +
+        '<button onclick="window.print()" style="width:auto;padding:8px 16px;">Save as PDF</button>' +
+        '</div>' +
+        '<div class="section">' +
+        '<div style="text-align:center;margin-bottom:20px;">' +
+        '<div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">Finance Sinking Fund</div>' +
+        '<h1 style="margin:4px 0;font-size:22px;">Statement of Contribution</h1>' +
+        '</div>' +
+        '<div style="font-size:14px;margin-bottom:16px;">' +
+        '<div><strong>' + data.memberName + '</strong> &middot; Member ID ' + data.memberId + '</div>' +
+        '<div class="hint" style="margin:4px 0 0">Period: ' + periodLabel + '</div>' +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+        '<thead><tr style="text-align:left;border-bottom:2px solid var(--hairline);">' +
+        '<th style="padding:8px 4px;">Date</th><th style="padding:8px 4px;">Reference</th>' +
+        '<th style="padding:8px 4px;text-align:right;">Amount</th><th style="padding:8px 4px;text-align:right;">Balance</th>' +
+        '</tr></thead><tbody>' + openingRow + rowsHtml + '</tbody>' +
+        '<tfoot><tr style="border-top:2px solid var(--hairline);font-weight:700;">' +
+        '<td colspan="3" style="padding:10px 4px;">Closing Balance</td>' +
+        '<td style="padding:10px 4px;text-align:right;">' + fmtMoney(data.closingBalance) + '</td>' +
+        '</tr></tfoot></table>' +
+        '<p class="hint" style="margin-top:20px;margin-bottom:0;">Generated on ' + fmtDate(new Date()) + '.</p>' +
+        '</div></div>'
+      );
     }
 
     // ---------- ADMIN: SETTINGS ----------
