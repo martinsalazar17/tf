@@ -183,6 +183,7 @@
     }
     .icon-btn:hover { background: var(--ios-blue-dark); color: #fff; }
     .icon-btn.danger:hover { background: var(--ios-red); color: #fff; }
+    .icon-btn.warn:hover { background: var(--ios-orange); color: #fff; }
     .empty { font-size: 14px; color: var(--text-tertiary); text-align: center; padding: 16px 0; }
     html { scroll-behavior: smooth; }
     #app { transition: opacity 0.22s ease; opacity: 1; }
@@ -497,7 +498,8 @@
       eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>',
       eyeOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
       pencil: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
-      trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
+      trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+      userX: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>'
     };
     function iconChip(iconKey, colorHex) {
       // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
@@ -694,7 +696,10 @@
         rowsHtml = contributions.map(function (c) {
           return '<div class="loan-row"><span>' + fmtDate(c.paymentDate) + ' &middot; ' + fmtMoney(c.amount) +
             (c.reference ? ' &middot; ' + c.reference : '') + '</span>' +
-            '<span class="badge ' + c.status + '">' + c.status + '</span></div>';
+            (c.isWithdrawal
+              ? '<span class="badge Rejected">Withdrawal</span>'
+              : '<span class="badge Verified">Contribution</span>') +
+            '</div>';
         }).join('');
       }
 
@@ -888,10 +893,11 @@
           MEMBERS_CACHE = res.members;
           if (!res.members.length) { el.innerHTML = '<div class="empty">No members yet.</div>'; return; }
           el.innerHTML = '<div class="section">' + res.members.map(function (m) {
-            return '<div class="loan-row"><span>' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span>' +
-              '<span style="display:flex;gap:6px;align-items:center">' +
+            return '<div class="loan-row"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span>' +
+              '<span style="display:flex;gap:6px;align-items:center;flex-shrink:0;">' +
               '<button type="button" class="icon-btn" onclick="startEditMember(\'' + m.memberId + '\')" aria-label="Edit member">' + ICONS.pencil + '</button>' +
-              '<button type="button" class="icon-btn danger" onclick="confirmDeleteMember(\'' + m.memberId + '\')" aria-label="Delete member">' + ICONS.trash + '</button>' +
+              '<button type="button" class="icon-btn warn" onclick="confirmDeactivateMember(\'' + m.memberId + '\')" aria-label="Deactivate member">' + ICONS.userX + '</button>' +
+              '<button type="button" class="icon-btn danger" onclick="confirmPermanentDeleteMember(\'' + m.memberId + '\')" aria-label="Permanently delete member">' + ICONS.trash + '</button>' +
               '</span></div>';
           }).join('') + '</div>';
         })
@@ -930,13 +936,13 @@
       document.getElementById('memberFormMsg').textContent = '';
     }
 
-    function confirmDeleteMember(memberId) {
+    function confirmDeactivateMember(memberId) {
       const m = MEMBERS_CACHE.find(function (x) { return String(x.memberId) === String(memberId); });
       const name = m ? m.fullName : 'this member';
 
       showConfirmModal({
         title: 'Deactivate Member',
-        message: 'Deactivate ' + name + '? They will no longer be able to log in. Their contribution and loan history is preserved.',
+        message: 'Deactivate ' + name + '? They will no longer be able to log in, but their record stays in the system — their contribution and loan history is fully preserved, and their name will keep showing correctly everywhere. Note: their Member ID, Username, and Email stay reserved and can\'t be reused for a new member while deactivated.',
         confirmLabel: 'Deactivate',
         danger: true,
         onConfirm: function () {
@@ -953,6 +959,33 @@
               showInfoModal('Something went wrong. Please try again.', 'Error');
             })
             .deactivateMember(TOKEN, memberId);
+        }
+      });
+    }
+
+    function confirmPermanentDeleteMember(memberId) {
+      const m = MEMBERS_CACHE.find(function (x) { return String(x.memberId) === String(memberId); });
+      const name = m ? m.fullName : 'this member';
+
+      showConfirmModal({
+        title: 'Permanently Delete Member',
+        message: 'Permanently delete ' + name + '? This cannot be undone. Their Member ID, Username, and Email become free to reuse immediately. Their existing contribution and loan records stay in the sheets, but will no longer show their name — only their Member ID. Use Deactivate instead if you want to keep their full name/history intact.',
+        confirmLabel: 'Delete Permanently',
+        danger: true,
+        onConfirm: function () {
+          google.script.run
+            .withSuccessHandler(function (res) {
+              if (res.success) {
+                if (EDITING_MEMBER_ID === memberId) cancelEditMember();
+                loadMemberList();
+              } else {
+                showInfoModal(res.message || 'Could not delete member.', 'Error');
+              }
+            })
+            .withFailureHandler(function () {
+              showInfoModal('Something went wrong. Please try again.', 'Error');
+            })
+            .deleteMemberPermanently(TOKEN, memberId);
         }
       });
     }
@@ -1124,7 +1157,7 @@
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
-        '</div><h2>Log Contributions</h2>' +
+        '</div><h2>Contributions</h2>' +
         '<div id="bulkPane">' + spinnerHTML() + '</div>' +
         '</div>',
         function () {
@@ -1140,14 +1173,33 @@
           if (!res.success) { document.getElementById('bulkPane').innerHTML = '<div class="err">' + res.message + '</div>'; return; }
           ACTIVE_MEMBERS = res.members;
           BULK_ROWS = 0;
+          const memberOptions = ACTIVE_MEMBERS.map(function (m) {
+            return '<option value="' + m.memberId + '">' + m.fullName + '</option>';
+          }).join('');
           document.getElementById('bulkPane').innerHTML =
             '<div class="section">' +
+            '<h2>Log Contributions</h2>' +
             '<p class="hint">Record a contribution a member handed you or transferred, as soon as it comes in.</p>' +
             '<div id="bulkRows"></div>' +
             '<button class="secondary" type="button" onclick="addBulkRow()">+ Add Row</button>' +
             '<button style="margin-top:10px" onclick="submitBulkLog()">Save</button>' +
             '<div id="bulkError" class="err"></div>' +
             '<div id="bulkSuccess" style="color:#34C759;font-size:13px;margin-top:8px"></div>' +
+            '</div>' +
+            '<div class="section">' +
+            '<h2>Withdraw Contribution</h2>' +
+            '<p class="hint">Withdrawals are capped at the member\'s current contribution balance.</p>' +
+            '<label>Member</label>' +
+            '<select id="withdrawMember">' + memberOptions + '</select>' +
+            '<label>Amount</label>' +
+            '<input type="text" inputmode="decimal" id="withdrawAmount" placeholder="Amount" oninput="formatAmountOnInput(event)">' +
+            '<label>Date</label>' +
+            '<input type="date" id="withdrawDate">' +
+            '<label>Note (optional)</label>' +
+            '<input type="text" id="withdrawNote" placeholder="e.g. reason for withdrawal">' +
+            '<button onclick="submitWithdrawal()" id="withdrawBtn">Withdraw</button>' +
+            '<div id="withdrawError" class="err"></div>' +
+            '<div id="withdrawSuccess" style="color:#34C759;font-size:13px;margin-top:8px"></div>' +
             '</div>';
           addBulkRow();
         })
@@ -1208,6 +1260,46 @@
           errEl.textContent = 'Something went wrong. Please try again.';
         })
         .bulkLogContributions(TOKEN, entries);
+    }
+
+    function submitWithdrawal() {
+      const memberId = document.getElementById('withdrawMember').value;
+      const amount = parseAmountValue('withdrawAmount');
+      const date = document.getElementById('withdrawDate').value;
+      const note = document.getElementById('withdrawNote').value;
+      const btn = document.getElementById('withdrawBtn');
+      const errEl = document.getElementById('withdrawError');
+      const successEl = document.getElementById('withdrawSuccess');
+      errEl.textContent = '';
+      successEl.textContent = '';
+
+      if (!memberId || !amount || !date) {
+        errEl.textContent = 'Select a member, amount, and date.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false;
+          btn.textContent = 'Withdraw';
+          if (res.success) {
+            successEl.textContent = 'Withdrawal processed. New balance: ' + fmtMoney(res.newBalance) + '.';
+            document.getElementById('withdrawAmount').value = '';
+            document.getElementById('withdrawDate').value = '';
+            document.getElementById('withdrawNote').value = '';
+          } else {
+            errEl.textContent = res.message || 'Could not process withdrawal.';
+          }
+        })
+        .withFailureHandler(function () {
+          btn.disabled = false;
+          btn.textContent = 'Withdraw';
+          errEl.textContent = 'Something went wrong. Please try again.';
+        })
+        .withdrawContribution(TOKEN, memberId, amount, date, note);
     }
 
     // ---------- ADMIN: SETTINGS ----------
