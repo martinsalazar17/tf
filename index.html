@@ -184,6 +184,17 @@
     .icon-btn:hover { background: var(--ios-blue-dark); color: #fff; }
     .icon-btn.danger:hover { background: var(--ios-red); color: #fff; }
     .icon-btn.warn:hover { background: var(--ios-orange); color: #fff; }
+    .circle-btn {
+      width: 44px; height: 44px; min-height: 0; padding: 0;
+      border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease;
+    }
+    .circle-btn:hover { filter: brightness(0.92); box-shadow: 0 4px 14px rgba(0,0,0,0.25); transform: translateY(-1px); }
+    .circle-btn:active { transform: scale(0.94); }
+    .circle-btn.blue { background: var(--ios-blue); color: #fff; }
+    .circle-btn.gray { background: var(--fill-secondary); color: var(--text-primary); }
+    .circle-btn.green { background: var(--ios-green); color: #fff; }
     .empty { font-size: 14px; color: var(--text-tertiary); text-align: center; padding: 16px 0; }
     html { scroll-behavior: smooth; }
     #app { transition: opacity 0.22s ease; opacity: 1; }
@@ -508,7 +519,11 @@
       eyeOff: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 7 11 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 1 12s4 7 11 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
       pencil: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
       trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
-      userX: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>'
+      userX: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="22" y2="13"/><line x1="22" y1="8" x2="17" y2="13"/></svg>',
+      plus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+      minus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+      fileText: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>',
+      close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     };
     function iconChip(iconKey, colorHex) {
       // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
@@ -1163,16 +1178,20 @@
     let ACTIVE_MEMBERS = [];
 
     // Default view: the full transaction list, sorted by Date Transacted.
+    let TRANSACTIONS_CACHE = [];
+
     function renderAdminContributions() {
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
-        '</div><h2>Contributions</h2>' +
-        '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
-        '<button onclick="renderAddContributionForm()">+ Add Contribution</button>' +
-        '<button class="secondary" onclick="renderWithdrawForm()">&minus; Withdraw</button>' +
         '</div>' +
-        '<button class="secondary" style="margin-bottom:16px" onclick="renderStatementGenerator()">Generate Statement</button>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+        '<h2 style="margin:0;">Contributions</h2>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button type="button" class="circle-btn blue" onclick="renderAddContributionForm()" aria-label="Add Contribution">' + ICONS.plus + '</button>' +
+        '<button type="button" class="circle-btn gray" onclick="renderWithdrawForm()" aria-label="Withdraw">' + ICONS.minus + '</button>' +
+        '<button type="button" class="circle-btn green" onclick="renderStatementGenerator()" aria-label="Generate Statement">' + ICONS.fileText + '</button>' +
+        '</div></div>' +
         '<div id="txnListContent">' + spinnerHTML() + '</div></div>',
         function () {
           loadTransactionList();
@@ -1186,14 +1205,15 @@
       google.script.run
         .withSuccessHandler(function (res) {
           if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          TRANSACTIONS_CACHE = res.transactions;
           if (!res.transactions.length) { el.innerHTML = '<div class="empty">No transactions logged yet.</div>'; return; }
           el.innerHTML = '<div class="section">' + res.transactions.map(function (t) {
-            return '<div class="loan-row"><span>' +
+            return '<div class="loan-row" style="cursor:pointer;" onclick="showTransactionModal(\'' + t.transId + '\')"><span>' +
               '<strong>' + t.memberName + '</strong><br>' +
               '<span class="hint" style="margin:0">' + fmtDate(t.paymentDate) + ' &middot; Ref# ' + t.transId +
               (t.reference ? ' &middot; ' + t.reference : '') + '</span>' +
               '</span>' +
-              '<span class="badge ' + (t.isWithdrawal ? 'Rejected' : 'Verified') + '">' + fmtMoney(t.amount) + '</span>' +
+              '<span style="font-weight:700;color:' + (t.isWithdrawal ? 'var(--ios-red)' : 'var(--ios-green)') + '">' + fmtMoney(t.amount) + '</span>' +
               '</div>';
           }).join('') + '</div>';
         })
@@ -1201,6 +1221,120 @@
           el.innerHTML = '<div class="err">Could not load transactions.</div>';
         })
         .getAllContributionTransactions(TOKEN);
+    }
+
+    // ---------- Transaction detail / edit modal ----------
+    function showTransactionModal(transId) {
+      const t = TRANSACTIONS_CACHE.find(function (x) { return String(x.transId) === String(transId); });
+      if (!t) return;
+      const root = document.getElementById('modalRoot');
+      root.innerHTML =
+        '<div class="modal-overlay" id="modalOverlay">' +
+        '<div class="modal-card" style="text-align:left;position:relative;">' +
+        '<button type="button" class="icon-btn" id="modalCloseX" style="position:absolute;top:14px;right:14px;" aria-label="Close">' + ICONS.close + '</button>' +
+        '<h2 style="text-align:left;">Transaction Details</h2>' +
+        '<div style="font-size:14px;line-height:1.9;margin-bottom:20px;">' +
+        '<div><span class="hint" style="margin:0">Date Transacted</span><br>' + fmtDate(t.paymentDate) + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Transaction Number</span><br>' + t.transId + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Member Name</span><br>' + t.memberName + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Amount</span><br><strong style="color:' + (t.isWithdrawal ? 'var(--ios-red)' : 'var(--ios-green)') + '">' + fmtMoney(t.amount) + '</strong></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;">' +
+        '<button type="button" id="modalEditBtn">Edit</button>' +
+        '<button type="button" class="secondary" id="modalDeleteBtn">Delete</button>' +
+        '</div>' +
+        '</div></div>';
+
+      document.getElementById('modalCloseX').onclick = closeModal;
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+      document.getElementById('modalEditBtn').onclick = function () { showEditTransactionModal(transId); };
+      document.getElementById('modalDeleteBtn').onclick = function () {
+        closeModal();
+        showConfirmModal({
+          title: 'Delete Transaction',
+          message: 'Delete this ' + (t.isWithdrawal ? 'withdrawal' : 'contribution') + ' of ' + fmtMoney(Math.abs(t.amount)) + ' for ' + t.memberName + '? This cannot be undone.',
+          confirmLabel: 'Delete',
+          danger: true,
+          onConfirm: function () {
+            google.script.run
+              .withSuccessHandler(function (res) {
+                if (res.success) { loadTransactionList(); }
+                else { showInfoModal(res.message || 'Could not delete transaction.', 'Error'); }
+              })
+              .withFailureHandler(function () { showInfoModal('Something went wrong. Please try again.', 'Error'); })
+              .deleteContributionTransaction(TOKEN, transId);
+          }
+        });
+      };
+    }
+
+    function showEditTransactionModal(transId) {
+      const t = TRANSACTIONS_CACHE.find(function (x) { return String(x.transId) === String(transId); });
+      if (!t) return;
+      const root = document.getElementById('modalRoot');
+      const magnitude = Math.abs(t.amount);
+      const dateVal = new Date(t.paymentDate);
+      const dateStr = !isNaN(dateVal) ? dateVal.toISOString().split('T')[0] : '';
+
+      root.innerHTML =
+        '<div class="modal-overlay" id="modalOverlay">' +
+        '<div class="modal-card" style="text-align:left;position:relative;">' +
+        '<button type="button" class="icon-btn" id="modalCloseX" style="position:absolute;top:14px;right:14px;" aria-label="Close">' + ICONS.close + '</button>' +
+        '<h2 style="text-align:left;">Edit Transaction</h2>' +
+        '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">' + t.memberName + ' &middot; ' + (t.isWithdrawal ? 'Withdrawal' : 'Contribution') + '</div>' +
+        '<label>Amount</label>' +
+        '<input type="text" inputmode="decimal" id="editAmount" value="' + fmtMoney(magnitude) + '" oninput="formatAmountOnInput(event)">' +
+        '<label>Date</label>' +
+        '<input type="date" id="editDate" value="' + dateStr + '">' +
+        '<label>Reference / Note</label>' +
+        '<input type="text" id="editReference" value="' + (t.reference || '').replace(/"/g, '&quot;') + '">' +
+        '<div id="editTxnError" class="err"></div>' +
+        '<div style="display:flex;gap:10px;margin-top:6px;">' +
+        '<button type="button" id="editSaveBtn">Save Changes</button>' +
+        '<button type="button" class="secondary" id="editCancelBtn">Cancel</button>' +
+        '</div>' +
+        '</div></div>';
+
+      document.getElementById('modalCloseX').onclick = closeModal;
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+      document.getElementById('editCancelBtn').onclick = function () { showTransactionModal(transId); };
+      document.getElementById('editSaveBtn').onclick = function () {
+        const amountMagnitude = Number(parseAmountValue('editAmount'));
+        const date = document.getElementById('editDate').value;
+        const reference = document.getElementById('editReference').value;
+        const errEl = document.getElementById('editTxnError');
+        errEl.textContent = '';
+
+        if (!amountMagnitude || amountMagnitude <= 0) { errEl.textContent = 'Enter a valid amount.'; return; }
+        if (!date) { errEl.textContent = 'Enter the date.'; return; }
+
+        const signedAmount = t.isWithdrawal ? -amountMagnitude : amountMagnitude;
+        const btn = document.getElementById('editSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (res.success) {
+              closeModal();
+              loadTransactionList();
+            } else {
+              btn.disabled = false;
+              btn.textContent = 'Save Changes';
+              errEl.textContent = res.message || 'Could not save changes.';
+            }
+          })
+          .withFailureHandler(function () {
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+            errEl.textContent = 'Something went wrong. Please try again.';
+          })
+          .updateContributionTransaction(TOKEN, transId, signedAmount, date, reference);
+      };
     }
 
     // ---------- Add Contribution (its own screen now, not the default view) ----------
