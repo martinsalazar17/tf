@@ -152,6 +152,8 @@
     .badge.Approved, .badge.Active, .badge.Verified { color: #fff; background: var(--ios-green); }
     .badge.Rejected { color: #fff; background: var(--ios-red); }
     .badge.Paid { color: #fff; background: var(--ios-blue); }
+    .badge.Overdue { color: #fff; background: var(--ios-red); }
+    .badge.Upcoming { color: var(--text-secondary); background: var(--fill-secondary); }
     .calc-box {
       background: var(--fill-secondary);
       border-radius: 16px; padding: 14px; margin: 12px 0; font-size: 14px;
@@ -653,6 +655,14 @@
                 '<span class="hint" style="margin:0">P ' + fmtMoney(r.principalPaid) + ' / I ' + fmtMoney(r.interestPaid) + '</span></div>';
             }).join('');
           }
+          let scheduleHtml = '';
+          if (l.schedule && l.schedule.length) {
+            scheduleHtml = '<div class="hint" style="margin-bottom:8px">Payment Schedule</div>' +
+              l.schedule.map(function (s) {
+                return '<div class="loan-row"><span>Payment ' + s.installment + ' &middot; ' + fmtDate(s.dueDate) + '</span>' +
+                  '<span class="badge ' + s.status + '">' + s.status + '</span></div>';
+              }).join('') + '<div style="height:12px"></div>';
+          }
           return '<div class="loan-row" style="cursor:pointer" onclick="toggleLoanDetail(\'' + l.loanId + '\')">' +
             '<span>' + fmtMoney(l.principal) + ' &middot; ' + l.tenureMonths + 'mo</span>' +
             '<span class="badge ' + l.status + '">' + l.status + '</span>' +
@@ -666,6 +676,7 @@
             '<div class="row total"><span>Remaining Balance</span><span>' + fmtMoney(l.remainingBalance) + '</span></div>' +
             '</div>' +
             (l.purpose ? '<div class="hint">Purpose: ' + l.purpose + '</div>' : '') +
+            scheduleHtml +
             '<div class="hint" style="margin-bottom:8px">Payment Trail</div>' + repayHtml +
             '</div>';
         }).join('');
@@ -798,9 +809,13 @@
         '<div class="hint">Allowed range: ' + minRate + '% - ' + maxRate + '%</div>' +
         '<label>Tenure (months)</label>' +
         '<input type="number" id="loanTenure" min="1" step="1" value="6" required>' +
+        '<label>First Payment Due Date</label>' +
+        '<input type="date" id="loanFirstDue" required>' +
+        '<div class="hint">The rest of the schedule is generated automatically — same day of the month, one per month of tenure.</div>' +
         '<label>Purpose (optional)</label>' +
         '<input type="text" id="loanPurpose">' +
         '<div id="loanAppCalcBox" class="calc-box"></div>' +
+        '<div id="loanScheduleBox"></div>' +
         '<button type="submit" id="loanAppSubmitBtn">Create Loan</button>' +
         '<div id="loanAppMsg" class="err"></div>' +
         '</form></div>';
@@ -808,7 +823,8 @@
       const principalEl = document.getElementById('loanPrincipal');
       const rateEl = document.getElementById('loanRate');
       const tenureEl = document.getElementById('loanTenure');
-      [principalEl, rateEl, tenureEl].forEach(function (el) {
+      const firstDueEl = document.getElementById('loanFirstDue');
+      [principalEl, rateEl, tenureEl, firstDueEl].forEach(function (el) {
         el.addEventListener('input', updateLoanAppCalcPreview);
       });
       updateLoanAppCalcPreview();
@@ -816,17 +832,19 @@
       document.getElementById('loanAppForm').addEventListener('submit', submitAdminLoan);
     }
 
-    // Mirrors the server's flat-rate formula exactly for instant feedback:
-    // TotalInterest = Principal * (Rate/100) * TenureMonths
-    // MonthlyAmortization = (Principal + TotalInterest) / TenureMonths
+    // Mirrors the server's flat-rate formula AND schedule generation
+    // exactly, for instant feedback before submit.
     function updateLoanAppCalcPreview() {
       const principal = Number(parseAmountValue('loanPrincipal')) || 0;
       const rate = Number(document.getElementById('loanRate').value) || 0;
       const tenure = Number(document.getElementById('loanTenure').value) || 0;
+      const firstDue = document.getElementById('loanFirstDue').value;
       const box = document.getElementById('loanAppCalcBox');
+      const scheduleBox = document.getElementById('loanScheduleBox');
 
       if (!principal || !tenure) {
         box.innerHTML = '<div class="empty">Enter amount and tenure to see estimated payments.</div>';
+        scheduleBox.innerHTML = '';
         return;
       }
       const totalInterest = principal * (rate / 100) * tenure;
@@ -837,6 +855,18 @@
         '<div class="row"><span>Total Interest</span><span>' + fmtMoney(totalInterest) + '</span></div>' +
         '<div class="row"><span>Total Payable</span><span>' + fmtMoney(totalPayable) + '</span></div>' +
         '<div class="row total"><span>Monthly Amortization</span><span>' + fmtMoney(monthly) + '</span></div>';
+
+      if (firstDue) {
+        const base = new Date(firstDue + 'T00:00:00');
+        let rows = '';
+        for (let i = 0; i < tenure; i++) {
+          const d = new Date(base.getFullYear(), base.getMonth() + i, base.getDate());
+          rows += '<div class="row"><span>Payment ' + (i + 1) + '</span><span>' + fmtDate(d) + '</span></div>';
+        }
+        scheduleBox.innerHTML = '<div class="calc-box" style="margin-top:10px;"><div class="hint" style="margin:0 0 4px;">Schedule Preview</div>' + rows + '</div>';
+      } else {
+        scheduleBox.innerHTML = '';
+      }
     }
 
     function submitAdminLoan(e) {
@@ -846,6 +876,7 @@
       const rate = document.getElementById('loanRate').value;
       const tenure = document.getElementById('loanTenure').value;
       const purpose = document.getElementById('loanPurpose').value;
+      const firstDueDate = document.getElementById('loanFirstDue').value;
       const btn = document.getElementById('loanAppSubmitBtn');
       const msgEl = document.getElementById('loanAppMsg');
       msgEl.textContent = '';
@@ -871,7 +902,7 @@
           btn.textContent = 'Create Loan';
           msgEl.textContent = 'Something went wrong. Please try again.';
         })
-        .createLoanForMember(TOKEN, memberId, principal, rate, tenure, purpose);
+        .createLoanForMember(TOKEN, memberId, principal, rate, tenure, purpose, firstDueDate);
     }
 
     // ---------- ADMIN: MEMBER DETAILS ----------
@@ -1097,6 +1128,9 @@
           '<div class="row"><span>Monthly Amortization</span><span>' + fmtMoney(l.monthlyAmortization) + '</span></div>' +
           '<div class="row total"><span>Remaining Balance</span><span>' + fmtMoney(l.remainingBalance) + '</span></div>' +
           '</div>' +
+          (l.nextDueDate
+            ? '<div class="member-context">Next Due: <strong>' + fmtDate(l.nextDueDate) + '</strong> &middot; <span class="badge ' + l.nextDueStatus + '">' + l.nextDueStatus + '</span></div>'
+            : '') +
           '<div class="approval-actions">' +
           '<button onclick="toggleRepayForm(\'' + l.loanId + '\')">Record Payment</button>' +
           '<button class="secondary" onclick="toggleRepayHistory(\'' + l.loanId + '\', ' + l.monthlyAmortization + ')">View History</button>' +
