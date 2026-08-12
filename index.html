@@ -750,7 +750,7 @@
         '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
         '</div>' +
         '<div class="nav-list">' +
-        '<div class="nav-row" onclick="renderLoanApplicationForm()">' + iconChip('check', '#007AFF') + '<div class="nav-row-text"><div class="nav-title">Loan Application</div><div class="nav-sub">Create a new loan for a member</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderAdminLoans()">' + iconChip('check', '#007AFF') + '<div class="nav-row-text"><div class="nav-title">Loans</div><div class="nav-sub">Create &amp; manage loans</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-row-text"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-row-text"><div class="nav-title">Contributions</div><div class="nav-sub">Log member contributions</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-row-text"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
@@ -761,11 +761,177 @@
     }
 
     // ---------- ADMIN: LOAN APPROVALS ----------
-    function renderLoanApplicationForm() {
+    let LOANS_CACHE = [];
+
+    // Default view: every loan across every member, sorted most-recent-first.
+    function renderAdminLoans() {
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
-        '</div><h2>Loan Application</h2>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+        '<h2 style="margin:0;">Loans</h2>' +
+        '<button type="button" class="circle-btn blue" onclick="renderCreateLoanForm()" aria-label="Create Loan">' + ICONS.plus + '</button>' +
+        '</div>' +
+        '<div id="loansListContent">' + spinnerHTML() + '</div></div>',
+        function () { loadLoansList(); }
+      );
+    }
+
+    function loadLoansList() {
+      const el = document.getElementById('loansListContent');
+      el.innerHTML = spinnerHTML();
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          LOANS_CACHE = res.loans;
+          if (!res.loans.length) { el.innerHTML = '<div class="empty">No loans on record.</div>'; return; }
+          el.innerHTML = '<div class="section">' + res.loans.map(function (l) {
+            return '<div class="loan-row" style="cursor:pointer;" onclick="showLoanModal(\'' + l.loanId + '\')"><span>' +
+              '<strong>' + l.memberName + '</strong><br>' +
+              '<span class="hint" style="margin:0">' + fmtMoney(l.principal) + ' &middot; ' + l.tenureMonths + 'mo &middot; ' + fmtDate(l.dateApplied) + '</span>' +
+              '</span>' +
+              '<span class="badge ' + l.status + '">' + l.status + '</span>' +
+              '</div>';
+          }).join('') + '</div>';
+        })
+        .withFailureHandler(function () {
+          el.innerHTML = '<div class="err">Could not load loans.</div>';
+        })
+        .getAllLoans(TOKEN);
+    }
+
+    // ---------- Loan detail / edit modal ----------
+    function showLoanModal(loanId) {
+      const l = LOANS_CACHE.find(function (x) { return String(x.loanId) === String(loanId); });
+      if (!l) return;
+      const root = document.getElementById('modalRoot');
+      root.innerHTML =
+        '<div class="modal-overlay" id="modalOverlay">' +
+        '<div class="modal-card" style="text-align:left;position:relative;">' +
+        '<button type="button" class="icon-btn" id="modalCloseX" style="position:absolute;top:14px;right:14px;" aria-label="Close">' + ICONS.close + '</button>' +
+        '<h2 style="text-align:left;">Loan Details</h2>' +
+        '<div style="font-size:14px;line-height:1.9;margin-bottom:20px;">' +
+        '<div><span class="hint" style="margin:0">Date Applied</span><br>' + fmtDate(l.dateApplied) + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Loan Reference</span><br>' + l.loanId + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Member Name</span><br>' + l.memberName + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Principal</span><br><strong>' + fmtMoney(l.principal) + '</strong></div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Interest Rate</span><br>' + l.interestRate + '% / month</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Tenure</span><br>' + l.tenureMonths + ' months</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">First Payment Due</span><br>' + fmtDate(l.firstDueDate) + '</div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Status</span><br><span class="badge ' + l.status + '">' + l.status + '</span></div>' +
+        '<div style="margin-top:10px;"><span class="hint" style="margin:0">Remaining Balance</span><br><strong>' + fmtMoney(l.remainingBalance) + '</strong></div>' +
+        (l.purpose ? '<div style="margin-top:10px;"><span class="hint" style="margin:0">Purpose</span><br>' + l.purpose + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:10px;">' +
+        '<button type="button" id="modalEditBtn">Edit</button>' +
+        '<button type="button" class="secondary" id="modalDeleteBtn">Delete</button>' +
+        '</div>' +
+        '</div></div>';
+
+      document.getElementById('modalCloseX').onclick = closeModal;
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+      document.getElementById('modalEditBtn').onclick = function () { showEditLoanModal(loanId); };
+      document.getElementById('modalDeleteBtn').onclick = function () {
+        closeModal();
+        showConfirmModal({
+          title: 'Delete Loan',
+          message: 'Delete this loan (' + fmtMoney(l.principal) + ') for ' + l.memberName + '? This also permanently deletes every repayment recorded against it. This cannot be undone.',
+          confirmLabel: 'Delete',
+          danger: true,
+          onConfirm: function () {
+            google.script.run
+              .withSuccessHandler(function (res) {
+                if (res.success) { loadLoansList(); }
+                else { showInfoModal(res.message || 'Could not delete loan.', 'Error'); }
+              })
+              .withFailureHandler(function () { showInfoModal('Something went wrong. Please try again.', 'Error'); })
+              .deleteLoan(TOKEN, loanId);
+          }
+        });
+      };
+    }
+
+    function showEditLoanModal(loanId) {
+      const l = LOANS_CACHE.find(function (x) { return String(x.loanId) === String(loanId); });
+      if (!l) return;
+      const root = document.getElementById('modalRoot');
+      const dueVal = new Date(l.firstDueDate);
+      const dueStr = !isNaN(dueVal) ? dueVal.toISOString().split('T')[0] : '';
+
+      root.innerHTML =
+        '<div class="modal-overlay" id="modalOverlay">' +
+        '<div class="modal-card" style="text-align:left;position:relative;">' +
+        '<button type="button" class="icon-btn" id="modalCloseX" style="position:absolute;top:14px;right:14px;" aria-label="Close">' + ICONS.close + '</button>' +
+        '<h2 style="text-align:left;">Edit Loan</h2>' +
+        '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">' + l.memberName + '</div>' +
+        '<label>Loan Amount</label>' +
+        '<input type="text" inputmode="decimal" id="editLoanPrincipal" value="' + fmtMoney(l.principal) + '" oninput="formatAmountOnInput(event)">' +
+        '<label>Interest Rate (% per month)</label>' +
+        '<input type="number" id="editLoanRate" step="0.1" value="' + l.interestRate + '">' +
+        '<label>Tenure (months)</label>' +
+        '<input type="number" id="editLoanTenure" step="1" value="' + l.tenureMonths + '">' +
+        '<label>First Payment Due Date</label>' +
+        '<input type="date" id="editLoanFirstDue" value="' + dueStr + '">' +
+        '<label>Purpose (optional)</label>' +
+        '<input type="text" id="editLoanPurpose" value="' + (l.purpose || '').replace(/"/g, '&quot;') + '">' +
+        '<div class="hint">Editing recalculates the monthly amortization. If the new amount is already fully covered by past payments, the loan is automatically marked Paid.</div>' +
+        '<div id="editLoanError" class="err"></div>' +
+        '<div style="display:flex;gap:10px;margin-top:6px;">' +
+        '<button type="button" id="editLoanSaveBtn">Save Changes</button>' +
+        '<button type="button" class="secondary" id="editLoanCancelBtn">Cancel</button>' +
+        '</div>' +
+        '</div></div>';
+
+      document.getElementById('modalCloseX').onclick = closeModal;
+      document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target.id === 'modalOverlay') closeModal();
+      });
+      document.getElementById('editLoanCancelBtn').onclick = function () { showLoanModal(loanId); };
+      document.getElementById('editLoanSaveBtn').onclick = function () {
+        const principal = parseAmountValue('editLoanPrincipal');
+        const rate = document.getElementById('editLoanRate').value;
+        const tenure = document.getElementById('editLoanTenure').value;
+        const firstDue = document.getElementById('editLoanFirstDue').value;
+        const purpose = document.getElementById('editLoanPurpose').value;
+        const errEl = document.getElementById('editLoanError');
+        errEl.textContent = '';
+
+        if (!principal || Number(principal) <= 0) { errEl.textContent = 'Enter a valid loan amount.'; return; }
+        if (!tenure || Number(tenure) <= 0) { errEl.textContent = 'Enter a valid tenure.'; return; }
+        if (!firstDue) { errEl.textContent = 'Enter the first payment due date.'; return; }
+
+        const btn = document.getElementById('editLoanSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (res.success) {
+              closeModal();
+              loadLoansList();
+            } else {
+              btn.disabled = false;
+              btn.textContent = 'Save Changes';
+              errEl.textContent = res.message || 'Could not save changes.';
+            }
+          })
+          .withFailureHandler(function () {
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+            errEl.textContent = 'Something went wrong. Please try again.';
+          })
+          .updateLoan(TOKEN, loanId, principal, rate, tenure, firstDue, purpose);
+      };
+    }
+
+    function renderCreateLoanForm() {
+      swapApp(
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderAdminLoans()">&larr; Back to Loans</button>' +
+        '</div><h2>Create Loan</h2>' +
         '<div id="loanAppContent">' + spinnerHTML() + '</div></div>',
         function () {
           google.script.run
@@ -889,10 +1055,7 @@
           btn.disabled = false;
           btn.textContent = 'Create Loan';
           if (res.success) {
-            document.getElementById('loanAppForm').reset();
-            msgEl.style.color = '#34C759';
-            msgEl.textContent = 'Loan created — monthly amortization ' + fmtMoney(res.monthlyAmortization) + '.';
-            updateLoanAppCalcPreview();
+            renderAdminLoans();
           } else {
             msgEl.textContent = res.message || 'Could not create loan.';
           }
