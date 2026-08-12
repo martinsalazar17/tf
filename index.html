@@ -466,6 +466,18 @@
       return (el.value || '').replace(/,/g, '');
     }
 
+    // Guards against a race condition: an async google.script.run response
+    // arriving AFTER the user has already navigated to a different screen
+    // (swapApp replaced #app's content in the meantime). Without this, the
+    // late response's callback would write into a detached DOM node from
+    // the old screen — usually invisible, but can surface as a spurious
+    // "Could not load..." error if the write happens to land somewhere
+    // still-visible. isConnected is a standard DOM property: true only if
+    // the element is still actually part of the live page.
+    function safeSetHTML(el, html) {
+      if (el && el.isConnected) el.innerHTML = html;
+    }
+
     // ---------- In-app modal (replaces native confirm()/alert()) ----------
     function showConfirmModal(opts) {
       const root = document.getElementById('modalRoot');
@@ -783,20 +795,20 @@
       el.innerHTML = spinnerHTML();
       google.script.run
         .withSuccessHandler(function (res) {
-          if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          if (!res.success) { safeSetHTML(el, '<div class="err">' + res.message + '</div>'); return; }
           LOANS_CACHE = res.loans;
-          if (!res.loans.length) { el.innerHTML = '<div class="empty">No loans on record.</div>'; return; }
-          el.innerHTML = '<div class="section">' + res.loans.map(function (l) {
+          if (!res.loans.length) { safeSetHTML(el, '<div class="empty">No loans on record.</div>'); return; }
+          safeSetHTML(el, '<div class="section">' + res.loans.map(function (l) {
             return '<div class="loan-row" style="cursor:pointer;" onclick="showLoanModal(\'' + l.loanId + '\')"><span>' +
               '<strong>' + l.memberName + '</strong><br>' +
               '<span class="hint" style="margin:0">' + fmtMoney(l.principal) + ' &middot; ' + l.tenureMonths + 'mo &middot; ' + fmtDate(l.dateApplied) + '</span>' +
               '</span>' +
               '<span class="badge ' + l.status + '">' + l.status + '</span>' +
               '</div>';
-          }).join('') + '</div>';
+          }).join('') + '</div>');
         })
         .withFailureHandler(function () {
-          el.innerHTML = '<div class="err">Could not load loans.</div>';
+          safeSetHTML(el, '<div class="err">Could not load loans.</div>');
         })
         .getAllLoans(TOKEN);
     }
@@ -936,19 +948,20 @@
         function () {
           google.script.run
             .withSuccessHandler(function (membersRes) {
-              if (!membersRes.success) { document.getElementById('loanAppContent').innerHTML = '<div class="err">' + membersRes.message + '</div>'; return; }
+              if (!membersRes.success) { safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">' + membersRes.message + '</div>'); return; }
               google.script.run
                 .withSuccessHandler(function (settingsRes) {
-                  if (!settingsRes.success) { document.getElementById('loanAppContent').innerHTML = '<div class="err">' + settingsRes.message + '</div>'; return; }
+                  if (!settingsRes.success) { safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">' + settingsRes.message + '</div>'); return; }
+                  if (!document.getElementById('loanAppContent')) return;
                   renderLoanApplicationContent(membersRes.members, settingsRes.settings);
                 })
                 .withFailureHandler(function () {
-                  document.getElementById('loanAppContent').innerHTML = '<div class="err">Could not load settings.</div>';
+                  safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">Could not load settings.</div>');
                 })
                 .getSettingsForAdmin(TOKEN);
             })
             .withFailureHandler(function () {
-              document.getElementById('loanAppContent').innerHTML = '<div class="err">Could not load members.</div>';
+              safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">Could not load members.</div>');
             })
             .getActiveMembers(TOKEN);
         }
@@ -1107,20 +1120,20 @@
       el.innerHTML = spinnerHTML();
       google.script.run
         .withSuccessHandler(function (res) {
-          if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          if (!res.success) { safeSetHTML(el, '<div class="err">' + res.message + '</div>'); return; }
           MEMBERS_CACHE = res.members;
-          if (!res.members.length) { el.innerHTML = '<div class="empty">No members yet.</div>'; return; }
-          el.innerHTML = '<div class="section">' + res.members.map(function (m) {
+          if (!res.members.length) { safeSetHTML(el, '<div class="empty">No members yet.</div>'); return; }
+          safeSetHTML(el, '<div class="section">' + res.members.map(function (m) {
             return '<div class="loan-row"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span>' +
               '<span style="display:flex;gap:6px;align-items:center;flex-shrink:0;">' +
               '<button type="button" class="icon-btn" onclick="startEditMember(\'' + m.memberId + '\')" aria-label="Edit member">' + ICONS.pencil + '</button>' +
               '<button type="button" class="icon-btn warn" onclick="confirmDeactivateMember(\'' + m.memberId + '\')" aria-label="Deactivate member">' + ICONS.userX + '</button>' +
               '<button type="button" class="icon-btn danger" onclick="confirmPermanentDeleteMember(\'' + m.memberId + '\')" aria-label="Permanently delete member">' + ICONS.trash + '</button>' +
               '</span></div>';
-          }).join('') + '</div>';
+          }).join('') + '</div>');
         })
         .withFailureHandler(function () {
-          el.innerHTML = '<div class="err">Could not load members.</div>';
+          safeSetHTML(el, '<div class="err">Could not load members.</div>');
         })
         .getActiveMembers(TOKEN);
     }
@@ -1401,10 +1414,10 @@
       el.innerHTML = spinnerHTML();
       google.script.run
         .withSuccessHandler(function (res) {
-          if (!res.success) { el.innerHTML = '<div class="err">' + res.message + '</div>'; return; }
+          if (!res.success) { safeSetHTML(el, '<div class="err">' + res.message + '</div>'); return; }
           TRANSACTIONS_CACHE = res.transactions;
-          if (!res.transactions.length) { el.innerHTML = '<div class="empty">No transactions logged yet.</div>'; return; }
-          el.innerHTML = '<div class="section">' + res.transactions.map(function (t) {
+          if (!res.transactions.length) { safeSetHTML(el, '<div class="empty">No transactions logged yet.</div>'); return; }
+          safeSetHTML(el, '<div class="section">' + res.transactions.map(function (t) {
             return '<div class="loan-row" style="cursor:pointer;" onclick="showTransactionModal(\'' + t.transId + '\')"><span>' +
               '<strong>' + t.memberName + '</strong><br>' +
               '<span class="hint" style="margin:0">' + fmtDate(t.paymentDate) + ' &middot; Ref# ' + t.transId +
@@ -1412,10 +1425,10 @@
               '</span>' +
               '<span style="font-weight:700;color:' + (t.isWithdrawal ? 'var(--ios-red)' : 'var(--ios-green)') + '">' + fmtMoney(t.amount) + '</span>' +
               '</div>';
-          }).join('') + '</div>';
+          }).join('') + '</div>');
         })
         .withFailureHandler(function () {
-          el.innerHTML = '<div class="err">Could not load transactions.</div>';
+          safeSetHTML(el, '<div class="err">Could not load transactions.</div>');
         })
         .getAllContributionTransactions(TOKEN);
     }
