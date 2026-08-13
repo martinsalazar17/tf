@@ -140,7 +140,7 @@
       box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
     .loan-row, .div-row {
-      display: flex; justify-content: space-between; padding: 10px 0;
+      display: flex; justify-content: space-between; align-items: center; padding: 10px 0;
       border-bottom: 1px solid var(--hairline); font-size: 15px;
     }
     .loan-row:last-child, .div-row:last-child { border-bottom: none; }
@@ -176,7 +176,12 @@
       background: none; border: none; width: 32px; height: 32px; min-height: 0;
       padding: 0; display: flex; align-items: center; justify-content: center;
       color: var(--text-secondary); cursor: pointer;
+      transition: color 0.15s ease;
     }
+    .password-toggle:hover {
+      transform: translateY(-50%); background: none; box-shadow: none; color: var(--text-primary);
+    }
+    .password-toggle:active { transform: translateY(-50%) scale(0.9); }
     .icon-btn {
       width: 30px; height: 30px; min-height: 0; padding: 0;
       border-radius: 8px; border: none; background: var(--fill-secondary);
@@ -305,8 +310,7 @@
       animation: modalFadeIn 0.15s ease-out both;
     }
     .modal-card {
-      background: var(--card-bg);
-      -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+      background: #fafaff;
       border: 1px solid var(--card-border); border-radius: 22px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.25);
       padding: 26px 24px; width: 100%; max-width: 340px;
@@ -355,6 +359,28 @@
     // unchanged from the Apps Script version.
     const API_URL = 'https://script.google.com/macros/s/AKfycby_B7b6ONsrrmslGhbqwFzwLhGEVDKe0PifRA85MSm9VIjhMCxKxsbU33xUpJgpHd3MEQ/exec';
 
+    // Apps Script enforces a short-window rate limit on how many script
+    // executions a single deployment can handle in quick succession. A
+    // burst of actions (create a loan, jump screens, log a repayment...)
+    // can trip it — Google then rejects the request with something that
+    // isn't valid JSON, which makes res.json() below throw. That's not a
+    // real failure, just a "try again in a moment" situation, so retry
+    // automatically with a short backoff before actually giving up.
+    function fetchWithRetry_(url, options, retriesLeft) {
+      return fetch(url, options)
+        .then(function (res) { return res.json(); })
+        .catch(function (err) {
+          if (retriesLeft > 0) {
+            return new Promise(function (resolve) {
+              setTimeout(function () {
+                resolve(fetchWithRetry_(url, options, retriesLeft - 1));
+              }, 1000);
+            });
+          }
+          throw err;
+        });
+    }
+
     function buildRunner(successHandler, failureHandler) {
       return new Proxy({}, {
         get: function (target, prop) {
@@ -370,12 +396,11 @@
             // Content-Type text/plain keeps this a "simple request" so the
             // browser skips the CORS preflight (OPTIONS) that Apps Script
             // web apps can't respond to properly.
-            fetch(API_URL, {
+            fetchWithRetry_(API_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify({ action: prop, params: args })
-            })
-              .then(function (res) { return res.json(); })
+            }, 2)
               .then(function (data) {
                 if (successHandler) successHandler(data);
               })
@@ -437,7 +462,7 @@
       if (!d) return '';
       const dt = new Date(d);
       if (isNaN(dt)) return d;
-      return dt.toLocaleDateString();
+      return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     }
 
     // Live "#,000.00" formatting for Amount fields as the user types.
@@ -836,8 +861,8 @@
         (l.purpose ? '<div style="margin-top:10px;"><span class="hint" style="margin:0">Purpose</span><br>' + l.purpose + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;gap:10px;">' +
-        '<button type="button" id="modalEditBtn">Edit</button>' +
-        '<button type="button" class="secondary" id="modalDeleteBtn">Delete</button>' +
+        '<button type="button" id="modalEditBtn" style="flex:1;">Edit</button>' +
+        '<button type="button" class="secondary" id="modalDeleteBtn" style="flex:1;">Delete</button>' +
         '</div>' +
         '</div></div>';
 
@@ -947,23 +972,15 @@
         '<div id="loanAppContent">' + spinnerHTML() + '</div></div>',
         function () {
           google.script.run
-            .withSuccessHandler(function (membersRes) {
-              if (!membersRes.success) { safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">' + membersRes.message + '</div>'); return; }
-              google.script.run
-                .withSuccessHandler(function (settingsRes) {
-                  if (!settingsRes.success) { safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">' + settingsRes.message + '</div>'); return; }
-                  if (!document.getElementById('loanAppContent')) return;
-                  renderLoanApplicationContent(membersRes.members, settingsRes.settings);
-                })
-                .withFailureHandler(function () {
-                  safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">Could not load settings.</div>');
-                })
-                .getSettingsForAdmin(TOKEN);
+            .withSuccessHandler(function (res) {
+              if (!res.success) { safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">' + res.message + '</div>'); return; }
+              if (!document.getElementById('loanAppContent')) return;
+              renderLoanApplicationContent(res.members, res.settings);
             })
             .withFailureHandler(function () {
-              safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">Could not load members.</div>');
+              safeSetHTML(document.getElementById('loanAppContent'), '<div class="err">Could not load loan setup.</div>');
             })
-            .getActiveMembers(TOKEN);
+            .getLoanCreationConfig(TOKEN);
         }
       );
     }
@@ -1450,8 +1467,8 @@
         '<div style="margin-top:10px;"><span class="hint" style="margin:0">Amount</span><br><strong style="color:' + (t.isWithdrawal ? 'var(--ios-red)' : 'var(--ios-green)') + '">' + fmtMoney(t.amount) + '</strong></div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;">' +
-        '<button type="button" id="modalEditBtn">Edit</button>' +
-        '<button type="button" class="secondary" id="modalDeleteBtn">Delete</button>' +
+        '<button type="button" id="modalEditBtn" style="flex:1;">Edit</button>' +
+        '<button type="button" class="secondary" id="modalDeleteBtn" style="flex:1;">Delete</button>' +
         '</div>' +
         '</div></div>';
 
