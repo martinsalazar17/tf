@@ -191,6 +191,7 @@
     .icon-btn:hover { background: var(--ios-blue-dark); color: #fff; }
     .icon-btn.danger:hover { background: var(--ios-red); color: #fff; }
     .icon-btn.warn:hover { background: var(--ios-orange); color: #fff; }
+    .icon-btn.success:hover { background: var(--ios-green); color: #fff; }
     .circle-btn {
       width: 44px; height: 44px; min-height: 0; padding: 0;
       border-radius: 50%; border: none; cursor: pointer; flex-shrink: 0;
@@ -562,7 +563,8 @@
       plus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
       minus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
       fileText: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>',
-      close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      restore: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>'
     };
     function iconChip(iconKey, colorHex) {
       // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
@@ -786,6 +788,7 @@
         '<span>Admin &middot; ' + NAME + '</span>' +
         '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
         '</div>' +
+        '<div id="adminStatsContent" style="margin-bottom:16px;">' + spinnerHTML() + '</div>' +
         '<div class="nav-list">' +
         '<div class="nav-row" onclick="renderAdminLoans()">' + iconChip('check', '#007AFF') + '<div class="nav-row-text"><div class="nav-title">Loans</div><div class="nav-sub">Create &amp; manage loans</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-row-text"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
@@ -793,8 +796,29 @@
         '<div class="nav-row" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-row-text"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-row-text"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderMemberDetails()">' + iconChip('users', '#5AC8FA') + '<div class="nav-row-text"><div class="nav-title">Member Details</div><div class="nav-sub">Add a new member login</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '</div></div>'
+        '</div></div>',
+        function () {
+          loadAdminStats();
+        }
       );
+    }
+
+    function loadAdminStats() {
+      const el = document.getElementById('adminStatsContent');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { safeSetHTML(el, '<div class="hint" style="text-align:center;">Stats unavailable right now.</div>'); return; }
+          safeSetHTML(el, '<div class="stat-grid">' +
+            '<div class="stat-card">' + iconChip('wallet', '#34C759') + '<div class="label">Total Fund Balance</div><div class="value">' + fmtMoney(res.totalFundBalance) + '</div></div>' +
+            '<div class="stat-card">' + iconChip('banknote', '#FF9500') + '<div class="label">Outstanding Loans</div><div class="value">' + fmtMoney(res.totalOutstandingLoans) + '</div></div>' +
+            '<div class="stat-card">' + iconChip('check', '#007AFF') + '<div class="label">Active Loans</div><div class="value">' + res.activeLoansCount + '</div></div>' +
+            '<div class="stat-card">' + iconChip('users', '#AF52DE') + '<div class="label">Active Members</div><div class="value">' + res.activeMembersCount + '</div></div>' +
+            '</div>');
+        })
+        .withFailureHandler(function () {
+          safeSetHTML(el, '<div class="hint" style="text-align:center;">Stats unavailable right now.</div>');
+        })
+        .getAdminSummaryStats(TOKEN);
     }
 
     // ---------- ADMIN: LOAN APPROVALS ----------
@@ -1124,10 +1148,13 @@
         '<div id="memberFormMsg" class="err"></div>' +
         '</form></div>' +
         '<h2>Existing Members</h2>' +
-        '<div id="memberListContent">' + spinnerHTML() + '</div></div>',
+        '<div id="memberListContent">' + spinnerHTML() + '</div>' +
+        '<h2>Inactive Members</h2>' +
+        '<div id="inactiveMemberListContent">' + spinnerHTML() + '</div></div>',
         function () {
           document.getElementById('memberForm').addEventListener('submit', submitMemberForm);
           loadMemberList();
+          loadInactiveMemberList();
         }
       );
     }
@@ -1153,6 +1180,41 @@
           safeSetHTML(el, '<div class="err">Could not load members.</div>');
         })
         .getActiveMembers(TOKEN);
+    }
+
+    function loadInactiveMemberList() {
+      const el = document.getElementById('inactiveMemberListContent');
+      el.innerHTML = spinnerHTML();
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.success) { safeSetHTML(el, '<div class="err">' + res.message + '</div>'); return; }
+          if (!res.members.length) { safeSetHTML(el, '<div class="empty">No deactivated members.</div>'); return; }
+          safeSetHTML(el, '<div class="section">' + res.members.map(function (m) {
+            return '<div class="loan-row"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);">' + m.fullName + ' <span class="hint" style="margin:0">(' + m.username + ')</span></span>' +
+              '<button type="button" class="icon-btn success" onclick="reactivateMemberClick(\'' + m.memberId + '\', \'' + m.fullName.replace(/'/g, "\\'") + '\')" aria-label="Reactivate member">' + ICONS.restore + '</button>' +
+              '</div>';
+          }).join('') + '</div>');
+        })
+        .withFailureHandler(function () {
+          safeSetHTML(el, '<div class="err">Could not load inactive members.</div>');
+        })
+        .getInactiveMembers(TOKEN);
+    }
+
+    function reactivateMemberClick(memberId, fullName) {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res.success) {
+            loadMemberList();
+            loadInactiveMemberList();
+          } else {
+            showInfoModal(res.message || 'Could not reactivate member.', 'Error');
+          }
+        })
+        .withFailureHandler(function () {
+          showInfoModal('Something went wrong. Please try again.', 'Error');
+        })
+        .reactivateMember(TOKEN, memberId);
     }
 
     function startEditMember(memberId) {
