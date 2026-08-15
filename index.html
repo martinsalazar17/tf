@@ -29,6 +29,37 @@
       --hairline: rgba(60,60,67,0.13);
       --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
       --brandbar-h: 56px;
+      --brandbar-bg: rgba(242,242,247,0.75);
+      --modal-bg: #fafaff;
+      --tab-active-bg: #ffffff;
+    }
+    /*
+      DARK MODE — "iOS 18 Glass, Dark"
+      Same tokens, dark values. Applied by setting data-theme="dark" on
+      <html> (see the theme-init script in <head> and applyTheme_() in
+      the main script below) — every rule in this file already reads
+      colors through the custom properties above, so overriding them
+      here is the entire dark-mode implementation; no rule below this
+      block needs to know about themes at all.
+    */
+    html[data-theme="dark"] {
+      --ios-blue: #0A84FF;
+      --ios-blue-dark: #409CFF;
+      --ios-green: #30D158;
+      --ios-red: #FF453A;
+      --ios-orange: #FF9F0A;
+      --ios-purple: #BF5AF2;
+      --bg-base: #000000;
+      --card-bg: rgba(28,28,30,0.72);
+      --card-border: rgba(255,255,255,0.08);
+      --fill-secondary: rgba(120,120,128,0.24);
+      --text-primary: #FFFFFF;
+      --text-secondary: rgba(235,235,245,0.6);
+      --text-tertiary: rgba(235,235,245,0.4);
+      --hairline: rgba(84,84,88,0.65);
+      --brandbar-bg: rgba(0,0,0,0.75);
+      --modal-bg: #1C1C1E;
+      --tab-active-bg: #3A3A3C;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html { height: 100%; }
@@ -50,7 +81,7 @@
     /* ---- Persistent brand strip: floating glass navbar, present on every screen ---- */
     .brandbar {
       position: sticky; top: 0; z-index: 10;
-      background: rgba(242,242,247,0.75);
+      background: var(--brandbar-bg);
       -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--hairline);
       padding: 13px 16px;
@@ -272,6 +303,27 @@
     }
     .nav-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.1px; }
     .nav-sub { font-size: 12.5px; color: var(--text-secondary); }
+    /* ---- Settings row (label + trailing control, e.g. the Dark Mode switch) ---- */
+    .switch-row { display: flex; align-items: center; gap: 12px; }
+    .switch {
+      position: relative; display: inline-block;
+      width: 51px; height: 31px; flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch-slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--fill-secondary); border-radius: 9999px;
+      transition: background 0.2s ease;
+    }
+    .switch-slider::before {
+      content: ""; position: absolute; left: 2px; top: 2px;
+      width: 27px; height: 27px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      transition: transform 0.2s ease;
+    }
+    .switch input:checked + .switch-slider { background: var(--ios-green); }
+    .switch input:checked + .switch-slider::before { transform: translateX(20px); }
+    .switch input:focus-visible + .switch-slider { box-shadow: 0 0 0 2px var(--ios-blue); }
     .approval-card { margin-bottom: 14px; }
     .approval-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
     .member-context {
@@ -291,7 +343,7 @@
       font-family: var(--font-system); font-size: 13px; font-weight: 600; cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
     }
-    .tab.active { background: #fff; color: var(--text-primary); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+    .tab.active { background: var(--tab-active-bg); color: var(--text-primary); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
     .bulk-row {
       display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
       padding: 12px; background: var(--fill-secondary); border-radius: 16px;
@@ -311,7 +363,7 @@
       animation: modalFadeIn 0.15s ease-out both;
     }
     .modal-card {
-      background: #fafaff;
+      background: var(--modal-bg);
       border: 1px solid var(--card-border); border-radius: 22px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.25);
       padding: 26px 24px; width: 100%; max-width: 340px;
@@ -336,6 +388,21 @@
       * { transition: none !important; }
     }
   </style>
+  <script>
+    // Applies the saved theme (or the OS preference, if nothing's saved
+    // yet) BEFORE the page paints, so there's no flash of the light
+    // theme on load for someone who has dark mode on. The real toggle
+    // logic (applyTheme_, toggleDarkMode) lives in the main script at
+    // the bottom of <body> — this is just the earliest possible copy
+    // of "read it and set the attribute."
+    (function () {
+      try {
+        var stored = localStorage.getItem('coop_theme');
+        var theme = stored || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { /* localStorage unavailable (e.g. private browsing) — defaults to light */ }
+    })();
+  </script>
 </head>
 <body>
   <header class="brandbar">
@@ -564,11 +631,51 @@
       minus: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
       fileText: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>',
       close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      restore: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>'
+      restore: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>',
+      moon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>'
     };
     function iconChip(iconKey, colorHex) {
       // colorHex + '1A' appends ~10% alpha as an 8-digit hex color for the chip background
       return '<div class="nav-icon" style="background:' + colorHex + '1A;color:' + colorHex + '">' + ICONS[iconKey] + '</div>';
+    }
+
+    // ---------- APPEARANCE (Dark Mode) ----------
+    // Applied via a data-theme attribute on <html>, which every CSS
+    // custom property in <style> is keyed off of — see the
+    // html[data-theme="dark"] block at the top of the stylesheet.
+    // Persisted in localStorage (not sessionStorage, since this is a
+    // device display preference, not tied to a login session) so it
+    // survives logout/login and browser restarts. The <head> script
+    // above applies the stored/OS-preferred theme before first paint;
+    // these functions are what the actual Settings toggle calls.
+    function getStoredTheme_() {
+      try {
+        return localStorage.getItem('coop_theme') || 'light';
+      } catch (e) {
+        return 'light';
+      }
+    }
+
+    function applyTheme_(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      try {
+        localStorage.setItem('coop_theme', theme);
+      } catch (e) { /* private browsing / storage disabled — theme still applies for this page load */ }
+    }
+
+    function toggleDarkMode(isDark) {
+      applyTheme_(isDark ? 'dark' : 'light');
+    }
+
+    // Shared "Appearance" section — identical on the Member Settings
+    // screen and the Admin Settings screen, so it's built in one place.
+    function appearanceSectionHtml_() {
+      const isDark = getStoredTheme_() === 'dark';
+      return '<div class="section"><h2>Appearance</h2>' +
+        '<div class="switch-row">' +
+        '<div class="nav-row-text"><div class="nav-title">Dark Mode</div><div class="nav-sub">Switch between light and dark appearance</div></div>' +
+        '<label class="switch"><input type="checkbox" id="darkModeToggle"' + (isDark ? ' checked' : '') + ' onchange="toggleDarkMode(this.checked)"><span class="switch-slider"></span></label>' +
+        '</div></div>';
     }
 
     // iOS-style 12-blade activity indicator, used everywhere a screen shows "Loading..."
@@ -667,7 +774,10 @@
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<span>Hi, ' + NAME + '</span>' +
+        '<div style="display:flex;gap:2px;">' +
+        '<button class="link-btn" onclick="renderMemberSettings()">Settings</button>' +
         '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
+        '</div>' +
         '</div><div id="dashContent">' + spinnerHTML() + '</div></div>',
         function () {
           google.script.run
@@ -744,6 +854,17 @@
       el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
 
+    // ---------- MEMBER: SETTINGS ----------
+    function renderMemberSettings() {
+      swapApp(
+        '<div class="app-shell"><div class="topbar">' +
+        '<button class="link-btn" onclick="renderMemberDashboard()">&larr; Back to Dashboard</button>' +
+        '</div><h2>Settings</h2>' +
+        appearanceSectionHtml_() +
+        '</div>'
+      );
+    }
+
     // ---------- MEMBER: CONTRIBUTION LEDGER (view-only) ----------
     function renderContributionLedger() {
       swapApp(
@@ -794,7 +915,7 @@
         '<div class="nav-row" onclick="renderLoanRepayments()">' + iconChip('banknote', '#34C759') + '<div class="nav-row-text"><div class="nav-title">Repayments</div><div class="nav-sub">Record loan payments</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderAdminContributions()">' + iconChip('wallet', '#AF52DE') + '<div class="nav-row-text"><div class="nav-title">Contributions</div><div class="nav-sub">Log member contributions</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderDividendCalculator()">' + iconChip('trending', '#FF9500') + '<div class="nav-row-text"><div class="nav-title">Dividends</div><div class="nav-sub">Year-end calculator</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
-        '<div class="nav-row" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-row-text"><div class="nav-title">Settings</div><div class="nav-sub">Rates &amp; dividend rules</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
+        '<div class="nav-row" onclick="renderAdminSettings()">' + iconChip('settings', '#8E8E93') + '<div class="nav-row-text"><div class="nav-title">Settings</div><div class="nav-sub">Rates, dividend rules &amp; appearance</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '<div class="nav-row" onclick="renderMemberDetails()">' + iconChip('users', '#5AC8FA') + '<div class="nav-row-text"><div class="nav-title">Member Details</div><div class="nav-sub">Add a new member login</div></div><span class="nav-row-chevron">' + ICONS.chevron + '</span></div>' +
         '</div></div>',
         function () {
@@ -1921,6 +2042,7 @@
         '<div class="app-shell"><div class="topbar">' +
         '<button class="link-btn" onclick="renderAdminHome()">&larr; Back to Admin Home</button>' +
         '</div><h2>Settings</h2>' +
+        appearanceSectionHtml_() +
         '<div id="settingsContent">' + spinnerHTML() + '</div></div>',
         function () {
           google.script.run
