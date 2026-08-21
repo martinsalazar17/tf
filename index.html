@@ -3,7 +3,44 @@
 <head>
   <meta charset="utf-8">
   <title>Finance Sinking Fund</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <!-- ===== Add to Home Screen (iOS + Android/Chrome) ===== -->
+  <!-- Android/Chrome: reads manifest.json for name, icons, and
+       display:"standalone" (no address bar) when added to the home
+       screen. -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Favicons (browser tab icon) -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+
+  <!-- iOS Safari: "Add to Home Screen" doesn't read manifest.json for
+       icons/standalone mode — it needs these specific meta/link tags
+       instead. All three are required for a proper app-like result:
+       apple-touch-icon for the home screen icon, web-app-capable to
+       launch without Safari's browser chrome, and web-app-title for
+       the name shown under the icon (falls back to the page <title>
+       otherwise, which is longer than you'd want under an icon). -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="geetee.">
+
+  <!-- Android/Chrome equivalent of apple-mobile-web-app-capable — most
+       modern Chrome versions get this from the manifest's display
+       property instead, but older Android WebViews still look for
+       this meta tag directly. -->
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- Browser chrome (status bar / task switcher) tint — matches this
+       app's --bg-base light/dark values from the stylesheet below, so
+       the OS-level chrome around the app doesn't clash with whichever
+       theme is active. -->
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F2F7">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+
   <style>
     /*
       DESIGN TOKENS — "iOS 18 Glass"
@@ -481,6 +518,21 @@
     }
 
     const google = { script: { run: buildRunner(null, null) } };
+
+    // Registering the service worker (sw.js) is what lets Android/Chrome
+    // treat this as an installable app — see the comment at the top of
+    // sw.js for exactly what it does (and deliberately doesn't do).
+    // iOS's Add to Home Screen doesn't use this at all (that's the
+    // apple-* meta tags in <head> instead), so this block is a no-op
+    // there — 'serviceWorker' just won't be in navigator on older iOS
+    // Safari versions, and the check below skips it cleanly.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
 
     // ---------- App state ----------
     let TOKEN = sessionStorage.getItem('coop_token') || null;
