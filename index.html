@@ -125,13 +125,24 @@
     }
     .brandbar-inner {
       max-width: 480px; margin: 0 auto;
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
+    .brandbar-left { display: flex; align-items: center; gap: 8px; }
     .brandmark {
       font-size: 17px; font-weight: 700; letter-spacing: -0.2px; color: var(--text-primary);
     }
-    .brandtag {
-      font-size: 13px; color: var(--text-secondary); font-weight: 500;
+    .brand-logo {
+      height: 26px; width: auto; display: block;
+    }
+    .login-logo {
+      height: 60px; width: auto; display: block; margin: 0 auto 18px;
+    }
+    /* The source mark is solid black on a transparent background — in
+       dark mode that would vanish against the near-black brandbar, so
+       flip it to white via filter instead of shipping a second image. */
+    html[data-theme="dark"] .brand-logo,
+    html[data-theme="dark"] .login-logo {
+      filter: invert(1);
     }
 
     .center-screen {
@@ -444,8 +455,11 @@
 <body>
   <header class="brandbar">
     <div class="brandbar-inner">
-      <span class="brandmark">Finance Sinking Fund</span>
-      <span class="brandtag">&middot; portal</span>
+      <div class="brandbar-left">
+        <img id="brandLogo" class="brand-logo" src="/logo.png" alt="" style="display:none;">
+        <span class="brandmark">Gee Tee</span>
+      </div>
+      <button id="brandLogoutBtn" class="link-btn" onclick="logoutAndReload()" style="display:none;">Log out</button>
     </div>
   </header>
   <div id="app"></div>
@@ -553,6 +567,7 @@
     });
 
     function route() {
+      setBrandbarLoggedIn_(true);
       if (ROLE === 'Admin') {
         renderAdminHome();
       } else {
@@ -560,11 +575,22 @@
       }
     }
 
+    // Shows/hides the header logo and Log out button in the persistent
+    // brandbar. Called from route() (fresh login or restored session)
+    // and from clearSession() (logout, expired/invalid session) — so
+    // every path that ends in "logged in" or "logged out" updates the
+    // header the same way, with nothing to remember at each call site.
+    function setBrandbarLoggedIn_(isLoggedIn) {
+      document.getElementById('brandLogo').style.display = isLoggedIn ? '' : 'none';
+      document.getElementById('brandLogoutBtn').style.display = isLoggedIn ? '' : 'none';
+    }
+
     function clearSession() {
       sessionStorage.removeItem('coop_token');
       sessionStorage.removeItem('coop_role');
       sessionStorage.removeItem('coop_name');
       TOKEN = null; ROLE = null; NAME = null;
+      setBrandbarLoggedIn_(false);
     }
 
     function logoutAndReload() {
@@ -756,8 +782,8 @@
     function renderLogin() {
       swapApp(
         '<div class="center-screen"><div class="card">' +
-        '<h1>Finance Sinking Fund</h1>' +
-        '<p class="sub">Sign in with the credentials given to you.</p>' +
+        '<img src="/logo.png" class="login-logo" alt="Gee Tee logo">' +
+        '<h1>Gee Tee</h1>' +
         '<form id="loginForm">' +
         '<label for="username">Username</label>' +
         '<input type="text" id="username" required autocomplete="username">' +
@@ -826,10 +852,7 @@
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<span>Hi, ' + NAME + '</span>' +
-        '<div style="display:flex;gap:2px;">' +
         '<button class="link-btn" onclick="renderMemberSettings()">Settings</button>' +
-        '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
-        '</div>' +
         '</div><div id="dashContent">' + spinnerHTML() + '</div></div>',
         function () {
           google.script.run
@@ -959,7 +982,6 @@
       swapApp(
         '<div class="app-shell"><div class="topbar">' +
         '<span>Admin &middot; ' + NAME + '</span>' +
-        '<button class="link-btn" onclick="logoutAndReload()">Log out</button>' +
         '</div>' +
         '<div id="adminStatsContent" style="margin-bottom:16px;">' + spinnerHTML() + '</div>' +
         '<div class="nav-list">' +
