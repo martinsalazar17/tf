@@ -4,6 +4,85 @@
   <meta charset="utf-8">
   <title>Finance Sinking Fund</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  ====================================================================
+1) ADD TO <head>, right after your existing <meta name="viewport">
+   tag (keep your existing viewport tag too — just add
+   viewport-fit=cover to it, see note below).
+====================================================================
+
+<!-- PWA: manifest -->
+<link rel="manifest" href="/manifest.json">
+
+<!-- PWA: theme color (browser chrome / status bar tint) -->
+<meta name="theme-color" content="#F2F2F7">
+
+<!-- iOS: standalone "app" behavior when launched from Home Screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="geetee">
+
+<!-- iOS: home screen icon (iOS ignores manifest.json icons entirely —
+     this tag is the only thing iOS Safari actually reads) -->
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<!-- Android/Chrome + general favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icon-16.png">
+<link rel="shortcut icon" href="/favicon.ico">
+
+--------------------------------------------------------------------
+NOTE on your existing viewport tag:
+Your current tag is:
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+Change it to:
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+This lets the app draw edge-to-edge behind the iPhone notch/home
+indicator instead of leaving black bars. (If you do this, you'll also
+want `padding: env(safe-area-inset-top) env(safe-area-inset-right)
+env(safe-area-inset-bottom) env(safe-area-inset-left);` on your
+brand bar / bottom nav so content doesn't sit under the notch — happy
+to wire that in once you confirm you want edge-to-edge.)
+
+
+====================================================================
+2) ADD right before your closing </body> tag (after your existing
+   <script> block, or at the very end of it — anywhere that runs
+   once on load is fine).
+====================================================================
+
+<script>
+  // Registers the service worker (enables the native Chrome/Android
+  // "Install app" prompt and iOS-safe offline shell fallback). Wrapped
+  // in a feature check + try/catch so it's a silent no-op on any
+  // browser that doesn't support it — never blocks the app from
+  // loading.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function (err) {
+        console.warn('SW registration failed (non-fatal):', err);
+      });
+    });
+  }
+</script>
+
+====================================================================
+3) FILES TO ADD to the Vercel/GitHub repo root (same folder as
+   Index.html), so they're served at the root paths referenced above:
+====================================================================
+
+/manifest.json
+/sw.js
+/apple-touch-icon.png   (180x180)
+/icon-16.png
+/icon-32.png
+/icon-192.png
+/icon-512.png
+/icon-512-maskable.png
+/favicon.ico
+
+All 8 files are attached alongside this note — just drop them into
+the repo root and push. No vercel.json changes needed; Vercel serves
+static files from the repo root by default.
   <style>
     /*
       DESIGN TOKENS — "iOS 18 Glass"
