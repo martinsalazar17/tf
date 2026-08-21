@@ -134,9 +134,14 @@
     .brand-logo {
       height: 26px; width: auto; display: block;
     }
-    .login-logo {
-      height: 60px; width: auto; display: block; margin: 0 auto 18px;
+    .login-brand {
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px; margin-bottom: 22px;
     }
+    .login-logo {
+      height: 34px; width: auto; display: block;
+    }
+    .login-brand h1 { margin: 0; }
     /* The source mark is solid black on a transparent background — in
        dark mode that would vanish against the near-black brandbar, so
        flip it to white via filter instead of shipping a second image. */
@@ -782,8 +787,7 @@
     function renderLogin() {
       swapApp(
         '<div class="center-screen"><div class="card">' +
-        '<img src="/logo.png" class="login-logo" alt="Gee Tee logo">' +
-        '<h1>Gee Tee</h1>' +
+        '<div class="login-brand"><img src="/logo.png" class="login-logo" alt="Gee Tee logo"><h1>Gee Tee</h1></div>' +
         '<form id="loginForm">' +
         '<label for="username">Username</label>' +
         '<input type="text" id="username" required autocomplete="username">' +
