@@ -27,7 +27,18 @@ const SHELL_ASSETS = [
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function (cache) {
-      return cache.addAll(SHELL_ASSETS);
+      // addAll() is all-or-nothing — one missing/404 asset (e.g. an icon
+      // that hasn't been deployed yet) would otherwise fail the entire
+      // install. Caching each asset independently means a single missing
+      // file just gets skipped instead of blocking the service worker
+      // from installing at all.
+      return Promise.all(
+        SHELL_ASSETS.map(function (url) {
+          return cache.add(url).catch(function (err) {
+            console.warn('SW: could not cache', url, err);
+          });
+        })
+      );
     })
   );
   self.skipWaiting();
